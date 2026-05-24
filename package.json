@@ -5,15 +5,20 @@
   "license": "MIT",
   "private": true,
   "main": "dist/index.js",
+  "bin": {
+    "contextlevy": "./bin/contextlevy.js"
+  },
   "files": [
     "action.yml",
+    "bin",
     "dist",
     "LICENSE",
     "README.md",
     "SECURITY.md"
   ],
   "scripts": {
-    "build": "ncc build src/index.ts -o dist --license licenses.txt",
+    "build": "ncc build src/index.ts -o dist --license licenses.txt && tsc -p tsconfig.cli.json",
+    "build:action": "ncc build src/index.ts -o dist --license licenses.txt",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -24,6 +29,7 @@
     "@actions/github": "^6.0.1",
     "@octokit/auth-app": "^7.1.5",
     "@octokit/rest": "^21.1.1",
+    "js-tiktoken": "^1.0.21",
     "yaml": "^2.8.0"
   },
   "overrides": {
@@ -32,6 +38,7 @@
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@vercel/ncc": "^0.38.4",
+    "@vitest/coverage-v8": "^4.1.7",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   }
