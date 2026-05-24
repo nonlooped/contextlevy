@@ -21,8 +21,9 @@ jobs:
 
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - run: npm test -- --coverage
       - run: npm run build
+      - run: npm run pack:check
 
       - name: Verify dist is committed
         run: |
