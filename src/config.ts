@@ -5,6 +5,8 @@ import type { PricingProfile } from './types';
 
 export type CommentFormat = 'default' | 'compact';
 
+export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
+
 export interface ContextLevyConfig {
   tokenThreshold?: number;
   largeFileTokenThreshold?: number;
@@ -12,7 +14,13 @@ export interface ContextLevyConfig {
   showCostTable?: boolean;
   pricingProfiles?: PricingProfile[];
   commentFormat?: CommentFormat;
+  ignorePaths?: string[];
+  allowPaths?: string[];
+  failOnSeverity?: SeverityLevel;
+  failAboveTokens?: number;
 }
+
+const SEVERITY_LEVELS: SeverityLevel[] = ['low', 'medium', 'high', 'critical'];
 
 export const DEFAULT_CONFIG_PATHS = [
   '.contextlevy.yml',
@@ -56,6 +64,35 @@ function readOptionalInteger(value: unknown, fieldName: string): number | undefi
     throw new Error(`${fieldName} must be a non-negative integer.`);
   }
   return number;
+}
+
+function readStringArray(value: unknown, fieldName: string): string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`${fieldName} must be an array of strings.`);
+  }
+  return value.map((entry, index) => {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      throw new Error(`${fieldName}[${index}] must be a non-empty string.`);
+    }
+    return entry.trim();
+  });
+}
+
+function parseSeverityLevel(value: unknown, fieldName: string): SeverityLevel | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
+  }
+  const normalized = value.trim().toLowerCase() as SeverityLevel;
+  if (!SEVERITY_LEVELS.includes(normalized)) {
+    throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
+  }
+  return normalized;
 }
 
 function readOptionalBoolean(value: unknown, fieldName: string): boolean | undefined {
@@ -170,6 +207,22 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
     commentFormat: parseCommentFormat(
       readConfigValue(record, 'commentFormat', 'comment-format'),
       'comment-format',
+    ),
+    ignorePaths: readStringArray(
+      readConfigValue(record, 'ignorePaths', 'ignore-paths'),
+      'ignore-paths',
+    ),
+    allowPaths: readStringArray(
+      readConfigValue(record, 'allowPaths', 'allow-paths'),
+      'allow-paths',
+    ),
+    failOnSeverity: parseSeverityLevel(
+      readConfigValue(record, 'failOnSeverity', 'fail-on-severity'),
+      'fail-on-severity',
+    ),
+    failAboveTokens: readOptionalInteger(
+      readConfigValue(record, 'failAboveTokens', 'fail-above-tokens'),
+      'fail-above-tokens',
     ),
   };
 

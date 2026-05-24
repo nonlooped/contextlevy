@@ -88,6 +88,42 @@ describe('loadConfigFile', () => {
 
     expect(() => loadConfigFile(dir)).toThrow(/integer/i);
   });
+
+  it('loads ignore-paths and allow-paths arrays', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(
+      join(dir, '.contextlevy.yml'),
+      [
+        'ignore-paths:',
+        '  - docs/generated/**',
+        'allow-paths:',
+        '  - prisma/migrations/**',
+        'fail-on-severity: high',
+        'fail-above-tokens: 50000',
+      ].join('\n'),
+    );
+
+    expect(loadConfigFile(dir)).toEqual({
+      ignorePaths: ['docs/generated/**'],
+      allowPaths: ['prisma/migrations/**'],
+      failOnSeverity: 'high',
+      failAboveTokens: 50000,
+    });
+  });
+
+  it('rejects invalid fail-on-severity values', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(join(dir, '.contextlevy.yml'), 'fail-on-severity: extreme\n');
+
+    expect(() => loadConfigFile(dir)).toThrow(/fail-on-severity/i);
+  });
+
+  it('rejects non-string path patterns', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(join(dir, '.contextlevy.yml'), 'ignore-paths:\n  - 42\n');
+
+    expect(() => loadConfigFile(dir)).toThrow(/ignore-paths/i);
+  });
 });
 
 describe('resolveSettings', () => {
@@ -105,6 +141,10 @@ describe('resolveSettings', () => {
       showCostTable: false,
       pricingProfiles: expect.any(Array),
       commentFormat: 'default',
+      ignorePaths: [],
+      allowPaths: [],
+      failOnSeverity: undefined,
+      failAboveTokens: undefined,
     });
   });
 
