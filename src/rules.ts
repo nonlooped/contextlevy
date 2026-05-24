@@ -19,8 +19,8 @@ const RULES: PathRule[] = [
     test: (f) => /(?:^|\/)generated(?:\/|$)/i.test(f) || /\.gen\.[jt]sx?$/.test(f),
     match: {
       category: 'generated',
-      label: 'Generated code. Usually low-value context for coding agents.',
-      suggestion: 'Do not commit generated output unless required.',
+      label: 'Generated code is usually low-value context for coding agents.',
+      suggestion: 'Avoid committing generated output unless required.',
     },
   },
   {

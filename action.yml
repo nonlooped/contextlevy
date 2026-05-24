@@ -20,10 +20,10 @@ inputs:
     description: Maximum number of high-impact files listed in the comment
     required: false
     default: '5'
-  cost-per-million-tokens:
-    description: USD input cost per 1M tokens for worst-case session estimate
+  model-pricing:
+    description: 'JSON array of { "name": string, "inputCostPerMillion": number } pricing rows'
     required: false
-    default: '3'
+    default: ''
 
 outputs:
   total-estimated-tokens:

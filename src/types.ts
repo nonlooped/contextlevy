@@ -41,6 +41,11 @@ export interface PullRequestAnalysis {
 }
 
 export interface CommentOptions {
-  costPerMillionTokens: number;
   maxHighImpactItems: number;
+  modelPricing: ModelPricing[];
+}
+
+export interface ModelPricing {
+  name: string;
+  inputCostPerMillion: number;
 }

@@ -35,8 +35,31 @@ jobs:
 | `github-token` | `GITHUB_TOKEN` env | Token with `pull-requests: write` |
 | `token-threshold` | `1000` | Skip commenting below this estimated token total |
 | `large-file-token-threshold` | `5000` | Marks individual files as large context risks |
-| `max-high-impact-items` | `5` | Max files listed under High impact |
-| `cost-per-million-tokens` | `3` | USD/1M tokens for worst-case cost line |
+| `max-high-impact-items` | `5` | Max files listed in the context table |
+| `model-pricing` | built-in defaults | JSON array replacing default model pricing rows |
+
+### Default model pricing
+
+When `model-pricing` is omitted, ContextLevy estimates worst-case input cost for:
+
+| Model | Default input cost / 1M tokens |
+|-------|-------------------------------:|
+| GPT-5.5 | $2.90 |
+| Opus 4.7 | $8.00 |
+| Gemini 3.1 Pro | $1.50 |
+| Kimi K2.6 | $0.40 |
+
+Override with custom pricing:
+
+```yaml
+- uses: unloopedmido/contextlevy@v1
+  with:
+    model-pricing: |
+      [
+        { "name": "Local 70B", "inputCostPerMillion": 0.2 },
+        { "name": "Team Gateway", "inputCostPerMillion": 1.75 }
+      ]
+```
 
 ## How estimation works
 

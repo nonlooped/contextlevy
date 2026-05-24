@@ -1,10 +1,34 @@
 import { getHighImpactFiles } from './analyze';
-import type { CommentOptions, PullRequestAnalysis } from './types';
+import { estimateSessionCost } from './pricing';
+import type { CommentOptions, ModelPricing, PullRequestAnalysis } from './types';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
 
-function formatTokenCount(value: number): string {
+const INDEXING_SUGGESTION =
+  'Exclude generated/coverage artifacts from agent-specific indexing where supported.';
+
+export function formatCompactTokens(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`;
+  }
+
   return value.toLocaleString('en-US');
+}
+
+export function getRiskLevel(
+  totalTokens: number,
+  highImpactCount: number,
+): 'Low' | 'Medium' | 'High' | 'Critical' {
+  if (totalTokens >= 100_000 || highImpactCount >= 8) {
+    return 'Critical';
+  }
+  if (totalTokens >= 20_000 || highImpactCount >= 3) {
+    return 'High';
+  }
+  if (totalTokens >= 5_000 || highImpactCount >= 1) {
+    return 'Medium';
+  }
+  return 'Low';
 }
 
 function formatUsd(value: number): string {
@@ -16,51 +40,126 @@ function formatUsd(value: number): string {
   });
 }
 
-function formatHighImpactSection(
+function shouldSuggestIndexing(analysis: PullRequestAnalysis): boolean {
+  return analysis.files.some((file) =>
+    ['generated', 'coverage', 'build-output', 'log', 'minified'].includes(file.category),
+  );
+}
+
+function normalizeSuggestion(suggestion: string): string {
+  if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
+    return 'Add `coverage/` to `.gitignore`.';
+  }
+  if (/do not commit generated output unless required/i.test(suggestion)) {
+    return 'Avoid committing generated output unless required.';
+  }
+  if (/keep build output out of version control/i.test(suggestion)) {
+    return 'Keep build output out of version control.';
+  }
+  if (/add \*\.log and logs\/ to \.gitignore/i.test(suggestion)) {
+    return 'Add `*.log` and `logs/` to `.gitignore`.';
+  }
+  return suggestion;
+}
+
+export function buildSuggestions(analysis: PullRequestAnalysis): string[] {
+  const seen = new Set<string>();
+  const suggestions: string[] = [];
+
+  for (const suggestion of analysis.suggestions) {
+    const normalized = normalizeSuggestion(suggestion);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      suggestions.push(normalized);
+    }
+  }
+
+  if (shouldSuggestIndexing(analysis) && !seen.has(INDEXING_SUGGESTION)) {
+    suggestions.push(INDEXING_SUGGESTION);
+  }
+
+  return suggestions;
+}
+
+function formatContextTable(
   analysis: PullRequestAnalysis,
   maxItems: number,
 ): string {
-  const highImpact = getHighImpactFiles(analysis, maxItems);
+  const rows = getHighImpactFiles(analysis, maxItems);
 
-  if (highImpact.length === 0) {
-    return 'No high-risk path patterns detected — mostly ordinary source changes.';
+  if (rows.length === 0) {
+    const topFiles = analysis.files.slice(0, maxItems);
+    if (topFiles.length === 0) {
+      return 'No added context detected in this PR diff.';
+    }
+
+    const fallbackRows = topFiles.map(
+      (file) =>
+        `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`,
+    );
+
+    return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...fallbackRows].join(
+      '\n',
+    );
   }
 
-  const lines = highImpact.flatMap((file) => [
-    `  +${formatTokenCount(file.estimatedTokens).padStart(6)}  ${file.filename}`,
-    `           ${file.label}`,
-    '',
-  ]);
+  const tableRows = rows.map(
+    (file) =>
+      `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`,
+  );
 
-  return lines.join('\n').trimEnd();
+  return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
+}
+
+function formatModelCostSection(
+  totalEstimatedTokens: number,
+  modelPricing: ModelPricing[],
+): string {
+  const rows = modelPricing.map((model) => {
+    const cost = estimateSessionCost(totalEstimatedTokens, model.inputCostPerMillion);
+    return `| ${model.name} | ~${formatUsd(cost)}/session |`;
+  });
+
+  return [
+    '**Estimated worst-case input cost if read by an agent:**',
+    '',
+    '| Model | Est. input cost |',
+    '|---|---:|',
+    ...rows,
+  ].join('\n');
 }
 
 export function formatComment(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
 ): string {
-  const worstCaseCost =
-    (analysis.totalEstimatedTokens / 1_000_000) * options.costPerMillionTokens;
+  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+  const suggestions = buildSuggestions(analysis);
 
   const suggestionLines =
-    analysis.suggestions.length > 0
-      ? analysis.suggestions.map((s) => `  - ${s}`).join('\n')
-      : '  - No specific suggestions — diff looks context-light.';
+    suggestions.length > 0
+      ? suggestions.map((s) => `- ${s}`).join('\n')
+      : '- No specific suggestions — diff looks context-light.';
 
   return [
-    COMMENT_MARKER,
     '🤖 **ContextLevy**',
     '',
-    `This PR adds **~${formatTokenCount(analysis.totalEstimatedTokens)} estimated AI-context tokens** (heuristic; not exact billing).`,
+    `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated AI-context tokens**.`,
     '',
-    '**High impact:**',
-    formatHighImpactSection(analysis, options.maxHighImpactItems),
+    `**Risk level:** ${riskLevel}`,
     '',
-    `**Estimated worst-case input cost if read by an agent:** ~${formatUsd(worstCaseCost)}/session`,
+    formatContextTable(analysis, options.maxHighImpactItems),
     '',
-    '_Different models tokenize differently, and agents may not read every changed file._',
+    formatModelCostSection(analysis.totalEstimatedTokens, options.modelPricing),
     '',
-    '**Suggestions:**',
+    '**Suggestions**',
     suggestionLines,
+    '',
+    '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._',
+    '',
+    '_ContextLevy runs locally in CI and does not send code to an external API._',
+    '',
+    COMMENT_MARKER,
   ].join('\n');
 }
