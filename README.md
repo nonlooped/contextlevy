@@ -36,25 +36,36 @@ jobs:
 | `token-threshold` | `1000` | Skip commenting below this estimated token total |
 | `large-file-token-threshold` | `5000` | Marks individual files as large context risks |
 | `max-high-impact-items` | `5` | Max files listed in the context table |
-| `model-pricing` | built-in defaults | JSON array replacing default model pricing rows |
+| `show-cost-table` | `true` | Include the pricing cost table in the PR comment |
+| `pricing-profiles` | built-in defaults | JSON array of pricing profiles for the cost table |
 
-### Default model pricing
+`model-pricing` is still accepted as a deprecated alias for `pricing-profiles`.
 
-When `model-pricing` is omitted, ContextLevy estimates worst-case input cost for:
+### Default pricing profiles
 
-| Model | Default input cost / 1M tokens |
-|-------|-------------------------------:|
+When `pricing-profiles` is omitted, ContextLevy estimates worst-case input cost for:
+
+| Pricing profile | Default input cost / 1M tokens |
+|-----------------|-------------------------------:|
 | GPT-5.5 | $2.90 |
 | Opus 4.7 | $8.00 |
 | Gemini 3.1 Pro | $1.50 |
 | Kimi K2.6 | $0.40 |
 
-Override with custom pricing:
+Hide the cost table:
 
 ```yaml
 - uses: unloopedmido/contextlevy@v1
   with:
-    model-pricing: |
+    show-cost-table: 'false'
+```
+
+Override pricing profiles:
+
+```yaml
+- uses: unloopedmido/contextlevy@v1
+  with:
+    pricing-profiles: |
       [
         { "name": "Local 70B", "inputCostPerMillion": 0.2 },
         { "name": "Team Gateway", "inputCostPerMillion": 1.75 }

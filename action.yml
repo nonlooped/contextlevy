@@ -20,8 +20,16 @@ inputs:
     description: Maximum number of high-impact files listed in the comment
     required: false
     default: '5'
+  show-cost-table:
+    description: Whether to include the pricing cost table in the PR comment
+    required: false
+    default: 'true'
+  pricing-profiles:
+    description: 'JSON array of { "name": string, "inputCostPerMillion": number } pricing profiles'
+    required: false
+    default: ''
   model-pricing:
-    description: 'JSON array of { "name": string, "inputCostPerMillion": number } pricing rows'
+    description: 'Deprecated alias for pricing-profiles'
     required: false
     default: ''
 

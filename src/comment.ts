@@ -1,6 +1,6 @@
 import { getHighImpactFiles } from './analyze';
 import { estimateSessionCost } from './pricing';
-import type { CommentOptions, ModelPricing, PullRequestAnalysis } from './types';
+import type { CommentOptions, PricingProfile, PullRequestAnalysis } from './types';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
 
@@ -111,19 +111,20 @@ function formatContextTable(
   return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
 }
 
-function formatModelCostSection(
+export function formatPricingCostSection(
   totalEstimatedTokens: number,
-  modelPricing: ModelPricing[],
+  pricingProfiles: PricingProfile[],
 ): string {
-  const rows = modelPricing.map((model) => {
-    const cost = estimateSessionCost(totalEstimatedTokens, model.inputCostPerMillion);
-    return `| ${model.name} | ~${formatUsd(cost)}/session |`;
+  const rows = pricingProfiles.map((profile) => {
+    const cost = estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion);
+    return `| ${profile.name} | ~${formatUsd(cost)}/session |`;
   });
 
   return [
-    '**Estimated worst-case input cost if read by an agent:**',
+    '**Estimated worst-case input cost if read by an agent**',
+    '_Based on configured input-token pricing. Output tokens and caching are not included._',
     '',
-    '| Model | Est. input cost |',
+    '| Pricing profile | Est. input cost |',
     '|---|---:|',
     ...rows,
   ].join('\n');
@@ -142,16 +143,24 @@ export function formatComment(
       ? suggestions.map((s) => `- ${s}`).join('\n')
       : '- No specific suggestions — diff looks context-light.';
 
-  return [
+  const sections = [
     '🤖 **ContextLevy**',
     '',
-    `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated AI-context tokens**.`,
+    `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
     '',
     `**Risk level:** ${riskLevel}`,
     '',
     formatContextTable(analysis, options.maxHighImpactItems),
-    '',
-    formatModelCostSection(analysis.totalEstimatedTokens, options.modelPricing),
+  ];
+
+  if (options.showCostTable && options.pricingProfiles.length > 0) {
+    sections.push(
+      '',
+      formatPricingCostSection(analysis.totalEstimatedTokens, options.pricingProfiles),
+    );
+  }
+
+  sections.push(
     '',
     '**Suggestions**',
     suggestionLines,
@@ -161,5 +170,7 @@ export function formatComment(
     '_ContextLevy runs locally in CI and does not send code to an external API._',
     '',
     COMMENT_MARKER,
-  ].join('\n');
+  );
+
+  return sections.join('\n');
 }

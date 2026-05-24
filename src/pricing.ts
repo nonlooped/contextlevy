@@ -1,58 +1,91 @@
-import type { ModelPricing } from './types';
+import type { PricingProfile } from './types';
 
-export const DEFAULT_MODEL_PRICING: ModelPricing[] = [
+export const DEFAULT_PRICING_PROFILES: PricingProfile[] = [
   { name: 'GPT-5.5', inputCostPerMillion: 2.9 },
   { name: 'Opus 4.7', inputCostPerMillion: 8.0 },
   { name: 'Gemini 3.1 Pro', inputCostPerMillion: 1.5 },
   { name: 'Kimi K2.6', inputCostPerMillion: 0.4 },
 ];
 
-export function parseModelPricing(input: string): ModelPricing[] {
+function readProfileName(record: Record<string, unknown>, index: number): string {
+  const name = record.name ?? record.profile;
+
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw new Error(
+      `pricing-profiles[${index}] must include a non-empty "name" or "profile" string.`,
+    );
+  }
+
+  return name.trim();
+}
+
+export function parsePricingProfiles(input: string): PricingProfile[] {
   const trimmed = input.trim();
   if (!trimmed) {
-    return DEFAULT_MODEL_PRICING;
+    return DEFAULT_PRICING_PROFILES;
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    throw new Error('model-pricing must be valid JSON.');
+    throw new Error('pricing-profiles must be valid JSON.');
   }
 
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error('model-pricing must be a non-empty JSON array.');
+  if (!Array.isArray(parsed)) {
+    throw new Error('pricing-profiles must be a JSON array.');
+  }
+
+  if (parsed.length === 0) {
+    return [];
   }
 
   return parsed.map((entry, index) => {
     if (typeof entry !== 'object' || entry === null) {
-      throw new Error(`model-pricing[${index}] must be an object.`);
+      throw new Error(`pricing-profiles[${index}] must be an object.`);
     }
 
     const record = entry as Record<string, unknown>;
-    const name = record.name;
     const inputCostPerMillion = record.inputCostPerMillion;
-
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      throw new Error(`model-pricing[${index}].name must be a non-empty string.`);
-    }
 
     if (typeof inputCostPerMillion !== 'number' || inputCostPerMillion < 0) {
       throw new Error(
-        `model-pricing[${index}].inputCostPerMillion must be a non-negative number.`,
+        `pricing-profiles[${index}].inputCostPerMillion must be a non-negative number.`,
       );
     }
 
     return {
-      name: name.trim(),
+      name: readProfileName(record, index),
       inputCostPerMillion,
     };
   });
 }
+
+/** @deprecated Use parsePricingProfiles */
+export function parseModelPricing(input: string): PricingProfile[] {
+  return parsePricingProfiles(input);
+}
+
+/** @deprecated Use DEFAULT_PRICING_PROFILES */
+export const DEFAULT_MODEL_PRICING = DEFAULT_PRICING_PROFILES;
 
 export function estimateSessionCost(
   estimatedTokens: number,
   inputCostPerMillion: number,
 ): number {
   return (estimatedTokens / 1_000_000) * inputCostPerMillion;
+}
+
+export function parseBooleanInput(value: string, defaultValue: boolean): boolean {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return defaultValue;
+  }
+  if (['true', '1', 'yes'].includes(trimmed)) {
+    return true;
+  }
+  if (['false', '0', 'no'].includes(trimmed)) {
+    return false;
+  }
+  throw new Error(`Invalid boolean value: "${value}". Use true or false.`);
 }

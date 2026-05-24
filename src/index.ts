@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { analyzePullRequestFiles } from './analyze';
 import { COMMENT_MARKER, formatComment } from './comment';
-import { parseModelPricing } from './pricing';
+import { parseBooleanInput, parsePricingProfiles } from './pricing';
 import type { PullRequestFileLike } from './types';
 
 async function listAllPullRequestFiles(
@@ -87,7 +87,10 @@ export async function run(): Promise<void> {
     core.getInput('large-file-token-threshold') || '5000',
   );
   const maxHighImpactItems = Number(core.getInput('max-high-impact-items') || '5');
-  const modelPricing = parseModelPricing(core.getInput('model-pricing') || '');
+  const showCostTable = parseBooleanInput(core.getInput('show-cost-table') || 'true', true);
+  const pricingProfilesInput =
+    core.getInput('pricing-profiles') || core.getInput('model-pricing') || '';
+  const pricingProfiles = parsePricingProfiles(pricingProfilesInput);
 
   const octokit = github.getOctokit(token);
   const context = github.context;
@@ -117,7 +120,8 @@ export async function run(): Promise<void> {
 
   const body = formatComment(analysis, {
     maxHighImpactItems,
-    modelPricing,
+    showCostTable,
+    pricingProfiles,
   });
 
   await upsertComment(octokit, owner, repo, pullNumber, body);

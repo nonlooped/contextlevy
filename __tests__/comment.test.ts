@@ -5,7 +5,7 @@ import {
   formatCompactTokens,
   getRiskLevel,
 } from '../src/comment';
-import { DEFAULT_MODEL_PRICING } from '../src/pricing';
+import { DEFAULT_PRICING_PROFILES } from '../src/pricing';
 import type { PullRequestAnalysis } from '../src/types';
 
 const analysis: PullRequestAnalysis = {
@@ -61,15 +61,21 @@ describe('formatComment', () => {
   it('matches the redesigned comment layout', () => {
     const body = formatComment(analysis, {
       maxHighImpactItems: 5,
-      modelPricing: DEFAULT_MODEL_PRICING,
+      showCostTable: true,
+      pricingProfiles: DEFAULT_PRICING_PROFILES,
     });
 
     expect(body).toContain('🤖 **ContextLevy**');
-    expect(body).toContain('**~37.9k estimated AI-context tokens**');
+    expect(body).toContain('**~37.9k estimated net-new AI-context tokens**');
     expect(body).toContain('**Risk level:** High');
     expect(body).toContain('| Added context | Path | Why it matters |');
     expect(body).toContain('| +32.0k | `examples/high-impact-pr/coverage/lcov.info` |');
     expect(body).toContain('| +5.8k | `examples/high-impact-pr/prisma/generated/client.ts` |');
+    expect(body).toContain('**Estimated worst-case input cost if read by an agent**');
+    expect(body).toContain(
+      '_Based on configured input-token pricing. Output tokens and caching are not included._',
+    );
+    expect(body).toContain('| Pricing profile | Est. input cost |');
     expect(body).toContain('| GPT-5.5 | ~$0.11/session |');
     expect(body).toContain('| Opus 4.7 |');
     expect(body).toContain('| Gemini 3.1 Pro |');
@@ -80,13 +86,35 @@ describe('formatComment', () => {
     expect(body.endsWith(COMMENT_MARKER)).toBe(true);
   });
 
-  it('supports custom model pricing', () => {
+  it('supports custom pricing profiles', () => {
     const body = formatComment(analysis, {
       maxHighImpactItems: 5,
-      modelPricing: [{ name: 'Local 70B', inputCostPerMillion: 0.2 }],
+      showCostTable: true,
+      pricingProfiles: [{ name: 'Local 70B', inputCostPerMillion: 0.2 }],
     });
 
     expect(body).toContain('| Local 70B | ~$0.01/session |');
     expect(body).not.toContain('GPT-5.5');
+  });
+
+  it('omits the cost table when disabled', () => {
+    const body = formatComment(analysis, {
+      maxHighImpactItems: 5,
+      showCostTable: false,
+      pricingProfiles: DEFAULT_PRICING_PROFILES,
+    });
+
+    expect(body).not.toContain('Estimated worst-case input cost');
+    expect(body).not.toContain('| Pricing profile | Est. input cost |');
+  });
+
+  it('omits the cost table when pricing profiles are empty', () => {
+    const body = formatComment(analysis, {
+      maxHighImpactItems: 5,
+      showCostTable: true,
+      pricingProfiles: [],
+    });
+
+    expect(body).not.toContain('Estimated worst-case input cost');
   });
 });
