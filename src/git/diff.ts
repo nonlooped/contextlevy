@@ -28,10 +28,15 @@ export function parseNumstatLine(line: string): PullRequestFileLike | null {
   };
 }
 
-export function listChangedFiles(baseRef: string, staged = false): PullRequestFileLike[] {
+export function listChangedFiles(
+  baseRef: string,
+  staged = false,
+  cwd?: string,
+): PullRequestFileLike[] {
   const stagedArgs = staged ? ['--cached'] : [];
   const numstat = execFileSync('git', ['diff', '--numstat', ...stagedArgs, baseRef], {
     encoding: 'utf8',
+    cwd,
   });
 
   const files: PullRequestFileLike[] = [];
@@ -48,11 +53,13 @@ export function loadPatchForFile(
   baseRef: string,
   filename: string,
   staged = false,
+  cwd?: string,
 ): string | undefined {
   const stagedArgs = staged ? ['--cached'] : [];
   try {
     return execFileSync('git', ['diff', ...stagedArgs, baseRef, '--', filename], {
       encoding: 'utf8',
+      cwd,
     });
   } catch {
     return undefined;
@@ -63,10 +70,11 @@ export function attachPatches(
   baseRef: string,
   files: PullRequestFileLike[],
   staged = false,
+  cwd?: string,
 ): PullRequestFileLike[] {
   return files.map((file) => ({
     ...file,
-    patch: loadPatchForFile(baseRef, file.filename, staged),
+    patch: loadPatchForFile(baseRef, file.filename, staged, cwd),
   }));
 }
 
