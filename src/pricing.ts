@@ -24,18 +24,9 @@ export function parsePricingProfiles(input: string): PricingProfile[] {
   return parsePricingProfilesValue(parsed);
 }
 
-/** @deprecated Use parsePricingProfiles */
-export function parseModelPricing(input: string): PricingProfile[] {
-  return parsePricingProfiles(input);
-}
-
-/** @deprecated Use DEFAULT_PRICING_PROFILES */
-export const DEFAULT_MODEL_PRICING = DEFAULT_PRICING_PROFILES;
-
 export function estimateSessionCost(
   estimatedTokens: number,
   inputCostPerMillion: number,
 ): number {
   return (estimatedTokens / 1_000_000) * inputCostPerMillion;
 }
-
