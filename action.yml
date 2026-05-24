@@ -6,7 +6,7 @@ branding:
 
 inputs:
   github-token:
-    description: GitHub token with pull-requests: write and contents: read
+    description: 'GitHub token with pull-requests: write and contents: read'
     required: false
   token-threshold:
     description: Minimum estimated tokens before posting a PR comment
