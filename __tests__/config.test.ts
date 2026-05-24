@@ -1,7 +1,12 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { loadConfigFile, resolveConfigPath } from '../src/config';
+import {
+  DEFAULT_CONFIG_PATHS,
+  loadConfigFile,
+  loadConfigFromRepository,
+  resolveConfigPath,
+} from '../src/config';
 import { resolveSettings } from '../src/settings';
 
 describe('loadConfigFile', () => {
@@ -52,17 +57,36 @@ describe('loadConfigFile', () => {
     expect(loadConfigFile(dir)).toBeNull();
   });
 
-  it('loads a custom config path when provided', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
-    const configDir = join(dir, 'config');
-    mkdirSync(configDir);
-    const configPath = join(configDir, 'contextlevy.yaml');
-    writeFileSync(configPath, 'token-threshold: 750\n');
+  it('loads the first available config from repository content at a ref', async () => {
+    const requested: string[] = [];
 
-    expect(resolveConfigPath(dir, 'config/contextlevy.yaml')).toBe(configPath);
-    expect(loadConfigFile(dir, 'config/contextlevy.yaml')).toEqual({
-      tokenThreshold: 750,
+    const config = await loadConfigFromRepository(async (path, ref) => {
+      requested.push(`${path}@${ref}`);
+      if (path === '.github/contextlevy.yml' && ref === 'base-sha') {
+        return 'token-threshold: 42\n';
+      }
+      return null;
+    }, 'base-sha');
+
+    expect(config).toEqual({
+      tokenThreshold: 42,
     });
+    expect(requested).toContain(`${DEFAULT_CONFIG_PATHS[0]}@base-sha`);
+    expect(requested).toContain('.github/contextlevy.yml@base-sha');
+  });
+
+  it('rejects non-finite numeric config values', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(join(dir, '.contextlevy.yml'), 'token-threshold: .inf\n');
+
+    expect(() => loadConfigFile(dir)).toThrow(/finite/i);
+  });
+
+  it('rejects fractional item limits', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(join(dir, '.contextlevy.yml'), 'max-high-impact-items: 2.5\n');
+
+    expect(() => loadConfigFile(dir)).toThrow(/integer/i);
   });
 });
 

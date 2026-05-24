@@ -73,6 +73,25 @@ function formatUsd(value: number): string {
   });
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return escapeHtml(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/`/g, '\\`')
+    .replace(/\r?\n/g, ' ');
+}
+
+function formatInlineCodeInTable(value: string): string {
+  return `\`${escapeMarkdownTableCell(value)}\``;
+}
+
 function shouldSuggestIndexing(analysis: PullRequestAnalysis): boolean {
   return analysis.files.some((file) =>
     ['generated', 'coverage', 'build-output', 'log', 'minified'].includes(file.category),
@@ -115,7 +134,7 @@ export function buildSuggestions(analysis: PullRequestAnalysis): string[] {
 }
 
 function formatFindingCell(filename: string, label: string): string {
-  return `\`${filename}\`<br/>${label}`;
+  return `${formatInlineCodeInTable(filename)}<br/>${escapeMarkdownTableCell(label)}`;
 }
 
 function formatShortPath(filename: string): string {
@@ -146,7 +165,7 @@ function formatCompactFindings(files: FileAnalysis[], maxItems: number): string 
 
   const parts = shown.map(
     (file) =>
-      `\`${formatShortPath(file.filename)}\` **+${formatCompactTokens(file.estimatedTokens)}**`,
+      `\`${escapeMarkdownTableCell(formatShortPath(file.filename))}\` **+${formatCompactTokens(file.estimatedTokens)}**`,
   );
   const remaining = files.length - shown.length;
   if (remaining > 0) {
@@ -274,7 +293,7 @@ export function formatPricingCostSection(
 ): string {
   const rows = pricingProfiles.map((profile) => {
     const cost = estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion);
-    return `| ${profile.name} | ~${formatUsd(cost)}/session |`;
+    return `| ${escapeMarkdownTableCell(profile.name)} | ~${formatUsd(cost)}/session |`;
   });
 
   return [
