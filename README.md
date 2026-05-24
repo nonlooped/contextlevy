@@ -38,6 +38,16 @@ jobs:
 
 When app credentials are present, ContextLevy mints an installation token for the current repository automatically.
 
+Grant the GitHub App these repository permissions:
+
+| Permission | Access |
+|------------|--------|
+| Pull requests | Read & write |
+| Issues | Read & write |
+| Contents | Read |
+
+After changing app permissions, accept the updated installation request on the repository.
+
 ### Fallback: `GITHUB_TOKEN`
 
 If app credentials are not configured, ContextLevy falls back to `github-token` or the workflow `GITHUB_TOKEN`:
