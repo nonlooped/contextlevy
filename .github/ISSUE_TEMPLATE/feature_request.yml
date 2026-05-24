@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new config option, classification rule, or comment improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ContextLevy is intentionally focused: no LLM calls, no external services, config-driven behavior.
+        Describe the problem first — a concrete config key or rule is easier to review than a vague idea.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What context-cost or workflow pain does this solve? Who is affected?
+      placeholder: Our monorepo adds large generated GraphQL clients that ContextLevy does not classify clearly...
+    validations:
+      required: true
+
+  - type: textarea
+    id: config_key
+    attributes:
+      label: Proposed config key or behavior
+      description: If applicable, suggest a kebab-case config key, default, and example YAML. Leave blank if unsure.
+      placeholder: |
+        ignore-paths:
+          - "**/generated/**"
+      render: yaml
+
+  - type: dropdown
+    id: severity_preference
+    attributes:
+      label: Advisory vs blocking
+      description: ContextLevy comments on PRs by default and does not block merges. Which do you prefer for this feature?
+      options:
+        - "Advisory — comment only (preferred default)"
+        - "Blocking — fail the check when triggered"
+        - "Either — configurable"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds, `.gitignore` changes, or threshold tweaks you tried.
