@@ -55,6 +55,18 @@ ContextLevy pays off most in:
 
 ContextLevy does not block merges by default. It comments with severity, file classifications, and cleanup suggestions. Teams that want a hard gate can enable `fail-on-severity` or `fail-above-tokens` in [`.contextlevy.yml`](../README.md#configuration).
 
+## vs `.gitattributes` diff filters
+
+Some teams use `.gitattributes` with `-diff` or custom diff drivers to hide generated files from `git diff` output. That reduces human review noise but does **not** remove files from the repository or from agent indexing.
+
+ContextLevy complements `.gitattributes` by:
+
+- Flagging when large generated files are still committed and indexed
+- Estimating token cost from PR API patches (independent of local diff settings)
+- Surfacing cleanup suggestions in the PR thread for reviewers who may not have local diff filters configured
+
+Use both when generated files must stay in git but should not dominate agent context.
+
 ## Get started
 
 Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) on your repository, add the workflow from the [README quick start](../README.md#quick-start), and tune thresholds in your config file.

@@ -609,9 +609,9 @@ npm run pack:check
 
 ## Releasing
 
-Releases are automated when you push a semver tag. The [release workflow](.github/workflows/release.yml) runs tests, verifies `dist/`, creates a GitHub Release, publishes the CLI to npm, and updates the major tag.
+Releases are automated when you push a semver tag. The [release workflow](.github/workflows/release.yml) runs tests, verifies `dist/`, creates a GitHub Release, publishes the CLI to npm via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC), and updates the major tag.
 
-Configure an [`NPM_TOKEN`](https://docs.npmjs.com/creating-and-viewing-access-tokens) repository secret before the first npm publish.
+**First npm release:** publish manually once (see below), then link the package to this repo as a trusted publisher on npmjs.com. Later tag pushes publish automatically — no `NPM_TOKEN` required.
 
 Tag stable releases with semantic versions:
 
@@ -621,6 +621,18 @@ git push origin v2.2.0
 ```
 
 The workflow updates the major-version tag (`v2`) automatically.
+
+### First npm publish (manual)
+
+Before trusted publishing is configured, publish the CLI once from a clean checkout:
+
+```bash
+npm ci
+npm run pack:check
+npm publish --access public
+```
+
+Then on [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, add **GitHub Actions** with repository `unloopedmido/contextlevy` and workflow `release.yml`. Future tag pushes publish via OIDC — no token secret needed.
 
 Consumers should usually pin:
 
