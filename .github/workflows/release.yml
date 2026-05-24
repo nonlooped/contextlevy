@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Verify dist is committed
+        run: git diff --exit-code dist/index.js dist/licenses.txt
+
+      - run: npm run pack:check
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREVIOUS=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n 1 || true)
+          NOTES_FILE=$(mktemp)
+          {
+            echo "## ContextLevy ${TAG}"
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              echo "Changes since ${PREVIOUS}:"
+              echo
+              sed -n "/^## \\[Unreleased\\]/,/^## \\[/{ /^## \\[/!p; }" CHANGELOG.md | sed '/^## \[/d' | sed '/^$/d' | head -n 40
+              echo
+              echo "Full changelog: https://github.com/${{ github.repository }}/compare/${PREVIOUS}...${TAG}"
+            else
+              echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${TAG}/CHANGELOG.md)."
+            fi
+          } > "$NOTES_FILE"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file "$NOTES_FILE" \
+            dist/index.js \
+            dist/licenses.txt
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+
+      - name: Update major version tag
+        run: |
+          MAJOR="${GITHUB_REF_NAME%%.*}"
+          git tag -f "$MAJOR" "${GITHUB_REF_NAME}"
+          git push origin "$MAJOR" --force
