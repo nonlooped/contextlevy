@@ -1,4 +1,6 @@
-# ContextLevy
+<p align="center">
+  <img src=".github/assets/wordmark.png" alt="ContextLevy">
+</p>
 
 <p align="center">
   <strong>Bundle-size checks, but for AI agent context cost.</strong>
