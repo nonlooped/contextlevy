@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: your-org/contextlevy@v1
+      - uses: unloopedmido/contextlevy@v1
         with:
           github-token: ${{ github.token }}
 ```
