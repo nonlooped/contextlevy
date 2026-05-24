@@ -1,0 +1,37 @@
+name: ContextLevy
+description: Estimate AI agent context overhead introduced by a pull request diff.
+branding:
+  icon: alert
+  color: purple
+
+inputs:
+  github-token:
+    description: GitHub token with pull-requests: write and contents: read
+    required: false
+    default: ${{ github.token }}
+  token-threshold:
+    description: Minimum estimated tokens before posting a PR comment
+    required: false
+    default: '1000'
+  large-file-token-threshold:
+    description: Per-file token count that triggers the large-file category
+    required: false
+    default: '5000'
+  max-high-impact-items:
+    description: Maximum number of high-impact files listed in the comment
+    required: false
+    default: '5'
+  cost-per-million-tokens:
+    description: USD input cost per 1M tokens for worst-case session estimate
+    required: false
+    default: '3'
+
+outputs:
+  total-estimated-tokens:
+    description: Total estimated AI-context tokens added by this PR
+  analyzed-file-count:
+    description: Number of changed files included in the estimate
+
+runs:
+  using: node20
+  main: dist/index.js
