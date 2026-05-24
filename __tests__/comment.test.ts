@@ -58,9 +58,13 @@ describe('buildSuggestions', () => {
 
     expect(suggestions).toContain('Add `coverage/` to `.gitignore`.');
     expect(suggestions).toContain('Avoid committing generated output unless required.');
-    expect(suggestions).toContain(
-      'Exclude generated/coverage artifacts from agent-specific indexing where supported.',
-    );
+
+    const indexingSuggestion = suggestions.find((s) => /agent indexing/i.test(s));
+    expect(indexingSuggestion).toBeDefined();
+    expect(indexingSuggestion).toMatch(/coverage\//);
+    expect(indexingSuggestion).toMatch(/\.gitignore/);
+    expect(indexingSuggestion).toMatch(/\.cursorignore/);
+    expect(indexingSuggestion).toContain('\n');
   });
 });
 
