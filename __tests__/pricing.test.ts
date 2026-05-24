@@ -1,7 +1,6 @@
 import {
   DEFAULT_PRICING_PROFILES,
   estimateSessionCost,
-  parseBooleanInput,
   parsePricingProfiles,
 } from '../src/pricing';
 
@@ -28,14 +27,6 @@ describe('parsePricingProfiles', () => {
 
   it('rejects invalid JSON', () => {
     expect(() => parsePricingProfiles('not-json')).toThrow(/valid JSON/i);
-  });
-});
-
-describe('parseBooleanInput', () => {
-  it('parses common boolean strings', () => {
-    expect(parseBooleanInput('', true)).toBe(true);
-    expect(parseBooleanInput('false', true)).toBe(false);
-    expect(parseBooleanInput('yes', false)).toBe(true);
   });
 });
 

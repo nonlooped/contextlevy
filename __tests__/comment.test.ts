@@ -83,7 +83,7 @@ describe('formatComment', () => {
       '_Based on configured input-token pricing. Output tokens and caching are not included._',
     );
     expect(body).toContain('| Pricing profile | Est. input cost |');
-    expect(body).toContain('| GPT-5.5 | ~$0.11/session |');
+    expect(body).toContain('| GPT-5.5 | ~$0.19/session |');
     expect(body).toContain('| Opus 4.7 |');
     expect(body).toContain('| Gemini 3.1 Pro |');
     expect(body).toContain('| Kimi K2.6 |');
@@ -135,7 +135,7 @@ describe('formatComment', () => {
         '>',
         '> `coverage/lcov.info` **+32.0k** · `generated/client.ts` **+5.8k**',
         '>',
-        '> **Worst-case input cost:** ~$0.02–$0.30/session  ',
+        '> **Worst-case input cost:** ~$0.04–$0.19/session  ',
         '> **Fix:** add `coverage/` to `.gitignore` · avoid generated output',
         '>',
         '> <sub>Estimated context risk only. Agents may not read every changed file.</sub>',
