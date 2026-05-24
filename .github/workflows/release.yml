@@ -2,8 +2,18 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
+      - master
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+concurrency:
+  group: npm-publish-package-json
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -13,40 +23,110 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out repository
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 2
+          fetch-tags: true
 
-      - uses: actions/setup-node@v6
+      - name: Detect version bump
+        id: package
+        run: |
+          set -euo pipefail
+          NEW=$(node -p "require('./package.json').version")
+          TAG="v${NEW}"
+
+          if npm view "contextlevy@${NEW}" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "contextlevy@${NEW} is already on npm; skipping."
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=${NEW}" >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "reason=manual workflow dispatch (missing on npm)"
+            exit 0
+          fi
+
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "No parent commit; skipping."
+            exit 0
+          fi
+
+          if ! git cat-file -e HEAD~1:package.json 2>/dev/null; then
+            REASON="package.json newly added on HEAD"
+          else
+            OLD=$(git show HEAD~1:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+            if [ "$OLD" != "$NEW" ]; then
+              REASON="package.json version ${OLD} -> ${NEW}"
+            elif git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
+              REASON="package.json version unchanged (${NEW}) but missing on npm (retry)"
+            else
+              REASON="package.json version unchanged (${NEW}) but tag ${TAG} missing on remote (initial publish or retry)"
+            fi
+          fi
+
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=${NEW}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+          echo "${REASON}"
+
+      - name: Set up Node.js
+        if: steps.package.outputs.publish == 'true'
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: npm
+          node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - name: Install dependencies
+        if: steps.package.outputs.publish == 'true'
+        run: npm ci
 
-      - name: Verify dist is committed
-        run: git diff --exit-code dist/index.js dist/licenses.txt
+      - name: Run verification
+        if: steps.package.outputs.publish == 'true'
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+          git diff --exit-code dist/index.js dist/licenses.txt
+          npm run pack:check
 
-      - run: npm run pack:check
+      - name: Push version tag
+        if: steps.package.outputs.publish == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG="${{ steps.package.outputs.tag }}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
+            echo "Tag ${TAG} already exists on remote; skipping tag push."
+          else
+            git tag "${TAG}"
+            git push origin "refs/tags/${TAG}"
+          fi
 
       - name: Create GitHub Release
+        if: steps.package.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ steps.package.outputs.tag }}"
+          VERSION="${{ steps.package.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub release ${TAG} already exists; skipping."
+            exit 0
+          fi
           PREVIOUS=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -n 1 || true)
           NOTES_FILE=$(mktemp)
           {
             echo "## ContextLevy ${TAG}"
             echo
             if [ -n "$PREVIOUS" ]; then
-              echo "Changes since ${PREVIOUS}:"
-              echo
-              sed -n "/^## \\[Unreleased\\]/,/^## \\[/{ /^## \\[/!p; }" CHANGELOG.md | sed '/^## \[/d' | sed '/^$/d' | head -n 40
+              sed -n "/^## \\[${VERSION}\\]/,/^## \\[/{ /^## \\[/!p; }" CHANGELOG.md | sed '/^## \[/d' | sed '/^$/d' | head -n 40
               echo
               echo "Full changelog: https://github.com/${{ github.repository }}/compare/${PREVIOUS}...${TAG}"
             else
@@ -60,10 +140,17 @@ jobs:
             dist/licenses.txt
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        if: steps.package.outputs.publish == 'true'
+        run: |
+          npm install -g npm@latest
+          npm publish --provenance --access public
 
       - name: Update major version tag
+        if: steps.package.outputs.publish == 'true'
         run: |
-          MAJOR="${GITHUB_REF_NAME%%.*}"
-          git tag -f "$MAJOR" "${GITHUB_REF_NAME}"
+          TAG="${{ steps.package.outputs.tag }}"
+          MAJOR="${TAG%%.*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$MAJOR" "$TAG"
           git push origin "$MAJOR" --force
