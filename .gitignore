@@ -10,6 +10,7 @@ node_modules/
 # Agentic tools
 .agents/
 skills-lock.json
+docs/superpowers
 
 # Test
 coverage/
