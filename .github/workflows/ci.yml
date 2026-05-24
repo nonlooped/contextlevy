@@ -23,4 +23,4 @@ jobs:
 
       - name: Verify dist is committed
         run: |
-          git diff --exit-code dist/index.js licenses.txt
+          git diff --exit-code dist/index.js dist/licenses.txt
