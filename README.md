@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/wordmark.png" alt="ContextLevy">
+  <img src=".github/assets/Cover.png" alt="ContextLevy">
 </p>
 
 <p align="center">
