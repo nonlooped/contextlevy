@@ -51,6 +51,31 @@ function isCommentAccessError(error: unknown): boolean {
   );
 }
 
+async function findContextLevyComment(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<{ id: number } | undefined> {
+  for await (const response of octokit.paginate.iterator(
+    octokit.rest.issues.listComments,
+    {
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    },
+  )) {
+    for (const comment of response.data) {
+      if (comment.body?.includes(COMMENT_MARKER)) {
+        return { id: comment.id };
+      }
+    }
+  }
+
+  return undefined;
+}
+
 async function upsertComment(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
@@ -58,14 +83,7 @@ async function upsertComment(
   issueNumber: number,
   body: string,
 ): Promise<void> {
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    per_page: 100,
-  });
-
-  const existing = comments.find((comment) => comment.body?.includes(COMMENT_MARKER));
+  const existing = await findContextLevyComment(octokit, owner, repo, issueNumber);
 
   if (existing) {
     try {
@@ -99,23 +117,16 @@ async function upsertComment(
 
 export async function run(): Promise<void> {
   const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
-  const configPathInput = core.getInput('config-path');
-  const config = loadConfigFile(workspaceRoot, configPathInput);
-  const resolvedConfigPath = resolveConfigPath(workspaceRoot, configPathInput);
+  const config = loadConfigFile(workspaceRoot);
+  const resolvedConfigPath = resolveConfigPath(workspaceRoot);
 
   if (resolvedConfigPath) {
     core.info(`Loaded ContextLevy config from ${resolvedConfigPath}.`);
+  } else {
+    core.info('No ContextLevy config file found — using defaults.');
   }
 
-  const settings = resolveSettings(config, {
-    tokenThreshold: core.getInput('token-threshold'),
-    largeFileTokenThreshold: core.getInput('large-file-token-threshold'),
-    maxHighImpactItems: core.getInput('max-high-impact-items'),
-    showCostTable: core.getInput('show-cost-table'),
-    pricingProfiles: core.getInput('pricing-profiles'),
-    modelPricing: core.getInput('model-pricing'),
-    commentFormat: core.getInput('comment-format'),
-  });
+  const settings = resolveSettings(config);
 
   const context = github.context;
 
