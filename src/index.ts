@@ -3,7 +3,7 @@ import * as github from '@actions/github';
 import { resolveGithubToken } from './auth';
 import { analyzePullRequestFiles } from './analyze';
 import { COMMENT_MARKER, formatComment } from './comment';
-import { loadConfigFile, resolveConfigPath } from './config';
+import { loadConfigFile, loadConfigFromRepository, type ContextLevyConfig } from './config';
 import { resolveSettings } from './settings';
 import type { PullRequestFileLike } from './types';
 
@@ -51,11 +51,60 @@ function isCommentAccessError(error: unknown): boolean {
   );
 }
 
+interface UpsertCommentOptions {
+  botLogin?: string;
+}
+
+function isRepositoryContentNotFound(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { status?: number }).status === 404
+  );
+}
+
+async function loadBaseConfig(
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+  ref: string,
+) {
+  return loadConfigFromRepository(async (path, candidateRef) => {
+    try {
+      const response = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref: candidateRef,
+      });
+
+      if (
+        Array.isArray(response.data) ||
+        response.data.type !== 'file' ||
+        !('content' in response.data)
+      ) {
+        return null;
+      }
+
+      return Buffer.from(
+        response.data.content,
+        response.data.encoding as BufferEncoding,
+      ).toString('utf8');
+    } catch (error) {
+      if (isRepositoryContentNotFound(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }, ref);
+}
+
 async function findContextLevyComment(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
+  options: UpsertCommentOptions = {},
 ): Promise<{ id: number } | undefined> {
   for await (const response of octokit.paginate.iterator(
     octokit.rest.issues.listComments,
@@ -67,7 +116,8 @@ async function findContextLevyComment(
     },
   )) {
     for (const comment of response.data) {
-      if (comment.body?.includes(COMMENT_MARKER)) {
+      const isExpectedAuthor = options.botLogin ? comment.user?.login === options.botLogin : true;
+      if (isExpectedAuthor && comment.body?.includes(COMMENT_MARKER)) {
         return { id: comment.id };
       }
     }
@@ -76,14 +126,15 @@ async function findContextLevyComment(
   return undefined;
 }
 
-async function upsertComment(
+export async function upsertComment(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
   repo: string,
   issueNumber: number,
   body: string,
-): Promise<void> {
-  const existing = await findContextLevyComment(octokit, owner, repo, issueNumber);
+  options: UpsertCommentOptions = {},
+): Promise<boolean> {
+  const existing = await findContextLevyComment(octokit, owner, repo, issueNumber, options);
 
   if (existing) {
     try {
@@ -94,7 +145,7 @@ async function upsertComment(
         body,
       });
       core.info(`Updated ContextLevy comment (${existing.id}).`);
-      return;
+      return true;
     } catch (error) {
       if (!isCommentAccessError(error)) {
         throw error;
@@ -106,28 +157,44 @@ async function upsertComment(
     }
   }
 
-  await octokit.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body,
-  });
-  core.info('Created ContextLevy comment.');
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body,
+    });
+    core.info('Created ContextLevy comment.');
+    return true;
+  } catch (error) {
+    if (!isCommentAccessError(error)) {
+      throw error;
+    }
+
+    core.warning(
+      'ContextLevy could not create a PR comment with the current token. Analysis outputs were still set.',
+    );
+    return false;
+  }
+}
+
+async function getAuthenticatedLogin(
+  octokit: ReturnType<typeof github.getOctokit>,
+): Promise<string | undefined> {
+  try {
+    const response = await octokit.rest.users.getAuthenticated();
+    return response.data.login;
+  } catch (error) {
+    core.info(
+      `Could not resolve authenticated GitHub login for comment ownership checks: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return undefined;
+  }
 }
 
 export async function run(): Promise<void> {
-  const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
-  const config = loadConfigFile(workspaceRoot);
-  const resolvedConfigPath = resolveConfigPath(workspaceRoot);
-
-  if (resolvedConfigPath) {
-    core.info(`Loaded ContextLevy config from ${resolvedConfigPath}.`);
-  } else {
-    core.info('No ContextLevy config file found — using defaults.');
-  }
-
-  const settings = resolveSettings(config);
-
   const context = github.context;
 
   if (!context.payload.pull_request) {
@@ -142,6 +209,29 @@ export async function run(): Promise<void> {
   core.setOutput('token-source', source);
 
   const octokit = github.getOctokit(token);
+  const baseSha = context.payload.pull_request.base?.sha;
+  const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
+  let config: ContextLevyConfig | null = null;
+
+  if (baseSha) {
+    config = await loadBaseConfig(octokit, owner, repo, baseSha);
+    if (config) {
+      core.info(`Loaded ContextLevy config from base ref ${baseSha}.`);
+    }
+  }
+
+  if (!config && !baseSha) {
+    config = loadConfigFile(workspaceRoot);
+    if (config) {
+      core.info('Loaded ContextLevy config from workspace.');
+    }
+  }
+
+  if (!config) {
+    core.info('No ContextLevy config file found — using defaults.');
+  }
+
+  const settings = resolveSettings(config);
 
   core.info(`Analyzing PR #${pullNumber} in ${owner}/${repo}`);
 
@@ -167,26 +257,38 @@ export async function run(): Promise<void> {
     commentFormat: settings.commentFormat,
   });
 
+  const botLogin = await getAuthenticatedLogin(octokit);
   try {
-    await upsertComment(octokit, owner, repo, pullNumber, body);
+    const posted = await upsertComment(octokit, owner, repo, pullNumber, body, { botLogin });
+    if (posted) {
+      return;
+    }
+
+    if (source !== 'app') {
+      return;
+    }
   } catch (error) {
     if (source !== 'app' || !isCommentAccessError(error)) {
       throw error;
     }
-
-    const fallbackToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
-    if (!fallbackToken || fallbackToken === token) {
-      throw new Error(
-        'ContextLevy GitHub App token could not write PR comments. Grant the app Issues: Read & write and Pull requests: Read & write permissions, then accept the updated installation request.',
-      );
-    }
-
-    core.warning(
-      'ContextLevy GitHub App token could not write PR comments; retrying comment upsert with GITHUB_TOKEN.',
-    );
-    core.setOutput('token-source', 'GITHUB_TOKEN');
-    await upsertComment(github.getOctokit(fallbackToken), owner, repo, pullNumber, body);
   }
+
+  const fallbackToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+  if (!fallbackToken || fallbackToken === token) {
+    core.warning(
+      'ContextLevy GitHub App token could not write PR comments, and no distinct GITHUB_TOKEN fallback was available.',
+    );
+    return;
+  }
+
+  core.warning(
+    'ContextLevy GitHub App token could not write PR comments; retrying comment upsert with GITHUB_TOKEN.',
+  );
+  core.setOutput('token-source', 'GITHUB_TOKEN');
+  const fallbackOctokit = github.getOctokit(fallbackToken);
+  await upsertComment(fallbackOctokit, owner, repo, pullNumber, body, {
+    botLogin: await getAuthenticatedLogin(fallbackOctokit),
+  });
 }
 
 if (require.main === module) {

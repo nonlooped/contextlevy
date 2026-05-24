@@ -146,4 +146,36 @@ describe('formatComment', () => {
     expect(body).not.toContain('**Suggestions**');
     expect(body).not.toContain('ContextLevy runs locally in CI');
   });
+
+  it('escapes markdown table control characters in default comments', () => {
+    const body = formatComment(
+      {
+        totalEstimatedTokens: 1000,
+        suggestions: [],
+        files: [
+          {
+            filename: 'docs/a|b`c<br>.md',
+            status: 'added',
+            estimatedTokens: 1000,
+            category: 'large-file',
+            label: 'Large | label',
+          },
+        ],
+      },
+      defaultCommentOptions,
+    );
+
+    expect(body).toContain('`docs/a\\|b\\`c&lt;br&gt;.md`<br/>Large \\| label');
+    expect(body).not.toContain('`docs/a|b`c<br>.md`');
+  });
+
+  it('escapes markdown table control characters in pricing profile names', () => {
+    const body = formatComment(analysis, {
+      ...defaultCommentOptions,
+      pricingProfiles: [{ name: 'Model | <script>', inputCostPerMillion: 1 }],
+    });
+
+    expect(body).toContain('| Model \\| &lt;script&gt; |');
+    expect(body).not.toContain('| Model | <script> |');
+  });
 });

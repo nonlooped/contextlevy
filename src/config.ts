@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { PricingProfile } from './types';
 
@@ -41,10 +41,21 @@ function readOptionalNumber(value: unknown, fieldName: string): number | undefin
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
-    throw new Error(`${fieldName} must be a non-negative number.`);
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} must be a finite non-negative number.`);
   }
   return value;
+}
+
+function readOptionalInteger(value: unknown, fieldName: string): number | undefined {
+  const number = readOptionalNumber(value, fieldName);
+  if (number === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(number)) {
+    throw new Error(`${fieldName} must be a non-negative integer.`);
+  }
+  return number;
 }
 
 function readOptionalBoolean(value: unknown, fieldName: string): boolean | undefined {
@@ -140,15 +151,15 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   const pricingProfilesRaw = readConfigValue(record, 'pricingProfiles', 'pricing-profiles');
 
   const config: ContextLevyConfig = {
-    tokenThreshold: readOptionalNumber(
+    tokenThreshold: readOptionalInteger(
       readConfigValue(record, 'tokenThreshold', 'token-threshold'),
       'token-threshold',
     ),
-    largeFileTokenThreshold: readOptionalNumber(
+    largeFileTokenThreshold: readOptionalInteger(
       readConfigValue(record, 'largeFileTokenThreshold', 'large-file-token-threshold'),
       'large-file-token-threshold',
     ),
-    maxHighImpactItems: readOptionalNumber(
+    maxHighImpactItems: readOptionalInteger(
       readConfigValue(record, 'maxHighImpactItems', 'max-high-impact-items'),
       'max-high-impact-items',
     ),
@@ -169,7 +180,7 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   return config;
 }
 
-function parseConfigContents(contents: string, sourcePath: string): ContextLevyConfig {
+export function parseConfigContents(contents: string, sourcePath: string): ContextLevyConfig {
   const trimmed = contents.trim();
   if (!trimmed) {
     throw new Error(`${sourcePath} is empty.`);
@@ -193,12 +204,7 @@ function parseConfigContents(contents: string, sourcePath: string): ContextLevyC
   return normalizeConfig(parsed, sourcePath);
 }
 
-export function resolveConfigPath(workspaceRoot: string, configPath?: string): string | null {
-  if (configPath?.trim()) {
-    const resolved = resolve(workspaceRoot, configPath.trim());
-    return existsSync(resolved) ? resolved : null;
-  }
-
+export function resolveConfigPath(workspaceRoot: string): string | null {
   for (const candidate of DEFAULT_CONFIG_PATHS) {
     const resolved = join(workspaceRoot, candidate);
     if (existsSync(resolved)) {
@@ -209,12 +215,28 @@ export function resolveConfigPath(workspaceRoot: string, configPath?: string): s
   return null;
 }
 
-export function loadConfigFile(workspaceRoot: string, configPath?: string): ContextLevyConfig | null {
-  const resolvedPath = resolveConfigPath(workspaceRoot, configPath);
+export function loadConfigFile(workspaceRoot: string): ContextLevyConfig | null {
+  const resolvedPath = resolveConfigPath(workspaceRoot);
   if (!resolvedPath) {
     return null;
   }
 
   const contents = readFileSync(resolvedPath, 'utf8');
   return parseConfigContents(contents, resolvedPath);
+}
+
+export type RepositoryConfigReader = (path: string, ref: string) => Promise<string | null>;
+
+export async function loadConfigFromRepository(
+  readConfig: RepositoryConfigReader,
+  ref: string,
+): Promise<ContextLevyConfig | null> {
+  for (const candidate of DEFAULT_CONFIG_PATHS) {
+    const contents = await readConfig(candidate, ref);
+    if (contents !== null) {
+      return parseConfigContents(contents, `${candidate}@${ref}`);
+    }
+  }
+
+  return null;
 }
