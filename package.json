@@ -2,6 +2,7 @@
   "name": "contextlevy",
   "version": "0.1.0",
   "description": "GitHub Action: estimate AI agent context overhead from PR diffs",
+  "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
     "build": "ncc build src/index.ts -o dist --license licenses.txt",

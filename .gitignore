@@ -1,6 +1,15 @@
+# Node.js
 node_modules/
+
+# Logs
 *.log
+
+# macOS
 .DS_Store
 
+# Agentic tools
 .agents/
 skills-lock.json
+
+# Test
+coverage/
