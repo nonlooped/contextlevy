@@ -12,7 +12,7 @@ It does **not** call an LLM and does **not** send your code anywhere. Estimates 
 
 Install the ContextLevy GitHub App on your repository, then add:
 
-- Repository variable: `CONTEXTLEVY_APP_CLIENT_ID` (your GitHub App ID)
+- Repository variable: `CONTEXTLEVY_APP_CLIENT_ID` — set this to your **numeric GitHub App ID** (not the OAuth Client ID)
 - Repository secret: `CONTEXTLEVY_APP_PRIVATE_KEY` (PEM private key)
 
 ```yaml
@@ -52,8 +52,9 @@ If app credentials are not configured, ContextLevy falls back to `github-token` 
 
 | Input | Default | Description |
 |-------|---------|-------------|
-| `app-client-id` | `CONTEXTLEVY_APP_CLIENT_ID` env | ContextLevy GitHub App ID |
+| `app-client-id` | `CONTEXTLEVY_APP_ID` / `CONTEXTLEVY_APP_CLIENT_ID` env | Numeric GitHub App ID |
 | `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | ContextLevy GitHub App private key PEM |
+| `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional installation ID override |
 | `github-token` | `GITHUB_TOKEN` env | Fallback token with `pull-requests: write` |
 | `token-threshold` | `1000` | Skip commenting below this estimated token total |
 | `large-file-token-threshold` | `5000` | Marks individual files as large context risks |

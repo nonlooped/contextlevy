@@ -7,6 +7,18 @@ import {
   resolveGithubToken,
 } from '../src/auth';
 
+vi.mock('@octokit/rest', () => ({
+  Octokit: class {
+    rest = {
+      apps: {
+        getRepoInstallation: vi.fn(async () => ({
+          data: { id: 987654 },
+        })),
+      },
+    };
+  },
+}));
+
 vi.mock('@octokit/auth-app', () => ({
   createAppAuth: vi.fn(() =>
     vi.fn(async () => ({
@@ -64,6 +76,16 @@ describe('createAppInstallationToken', () => {
     );
 
     expect(token).toBe('app-installation-token');
+  });
+
+  it('rejects OAuth client IDs masquerading as app IDs', async () => {
+    await expect(
+      createAppInstallationToken(
+        { appId: 'Iv23lioQXAEnji6YXbEl', privateKey: 'test-key' },
+        'unloopedmido',
+        'contextlevy',
+      ),
+    ).rejects.toThrow(/numeric GitHub App ID/i);
   });
 });
 
