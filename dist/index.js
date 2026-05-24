@@ -29997,6 +29997,7 @@ exports.COMMENT_MARKER = void 0;
 exports.formatCompactTokens = formatCompactTokens;
 exports.getRiskLevel = getRiskLevel;
 exports.buildSuggestions = buildSuggestions;
+exports.formatPricingCostSection = formatPricingCostSection;
 exports.formatComment = formatComment;
 const analyze_1 = __nccwpck_require__(2475);
 const pricing_1 = __nccwpck_require__(4309);
@@ -30074,15 +30075,16 @@ function formatContextTable(analysis, maxItems) {
     const tableRows = rows.map((file) => `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`);
     return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
 }
-function formatModelCostSection(totalEstimatedTokens, modelPricing) {
-    const rows = modelPricing.map((model) => {
-        const cost = (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, model.inputCostPerMillion);
-        return `| ${model.name} | ~${formatUsd(cost)}/session |`;
+function formatPricingCostSection(totalEstimatedTokens, pricingProfiles) {
+    const rows = pricingProfiles.map((profile) => {
+        const cost = (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, profile.inputCostPerMillion);
+        return `| ${profile.name} | ~${formatUsd(cost)}/session |`;
     });
     return [
-        '**Estimated worst-case input cost if read by an agent:**',
+        '**Estimated worst-case input cost if read by an agent**',
+        '_Based on configured input-token pricing. Output tokens and caching are not included._',
         '',
-        '| Model | Est. input cost |',
+        '| Pricing profile | Est. input cost |',
         '|---|---:|',
         ...rows,
     ].join('\n');
@@ -30094,26 +30096,20 @@ function formatComment(analysis, options) {
     const suggestionLines = suggestions.length > 0
         ? suggestions.map((s) => `- ${s}`).join('\n')
         : '- No specific suggestions — diff looks context-light.';
-    return [
+    const sections = [
         '🤖 **ContextLevy**',
         '',
-        `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated AI-context tokens**.`,
+        `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
         '',
         `**Risk level:** ${riskLevel}`,
         '',
         formatContextTable(analysis, options.maxHighImpactItems),
-        '',
-        formatModelCostSection(analysis.totalEstimatedTokens, options.modelPricing),
-        '',
-        '**Suggestions**',
-        suggestionLines,
-        '',
-        '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._',
-        '',
-        '_ContextLevy runs locally in CI and does not send code to an external API._',
-        '',
-        exports.COMMENT_MARKER,
-    ].join('\n');
+    ];
+    if (options.showCostTable && options.pricingProfiles.length > 0) {
+        sections.push('', formatPricingCostSection(analysis.totalEstimatedTokens, options.pricingProfiles));
+    }
+    sections.push('', '**Suggestions**', suggestionLines, '', '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._', '', '_ContextLevy runs locally in CI and does not send code to an external API._', '', exports.COMMENT_MARKER);
+    return sections.join('\n');
 }
 
 
@@ -30220,7 +30216,9 @@ async function run() {
     const tokenThreshold = Number(core.getInput('token-threshold') || '1000');
     const largeFileTokenThreshold = Number(core.getInput('large-file-token-threshold') || '5000');
     const maxHighImpactItems = Number(core.getInput('max-high-impact-items') || '5');
-    const modelPricing = (0, pricing_1.parseModelPricing)(core.getInput('model-pricing') || '');
+    const showCostTable = (0, pricing_1.parseBooleanInput)(core.getInput('show-cost-table') || 'true', true);
+    const pricingProfilesInput = core.getInput('pricing-profiles') || core.getInput('model-pricing') || '';
+    const pricingProfiles = (0, pricing_1.parsePricingProfiles)(pricingProfilesInput);
     const octokit = github.getOctokit(token);
     const context = github.context;
     if (!context.payload.pull_request) {
@@ -30240,7 +30238,8 @@ async function run() {
     }
     const body = (0, comment_1.formatComment)(analysis, {
         maxHighImpactItems,
-        modelPricing,
+        showCostTable,
+        pricingProfiles,
     });
     await upsertComment(octokit, owner, repo, pullNumber, body);
 }
@@ -30264,51 +30263,78 @@ if (require.main === require.cache[eval('__filename')]) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_MODEL_PRICING = void 0;
+exports.DEFAULT_MODEL_PRICING = exports.DEFAULT_PRICING_PROFILES = void 0;
+exports.parsePricingProfiles = parsePricingProfiles;
 exports.parseModelPricing = parseModelPricing;
 exports.estimateSessionCost = estimateSessionCost;
-exports.DEFAULT_MODEL_PRICING = [
+exports.parseBooleanInput = parseBooleanInput;
+exports.DEFAULT_PRICING_PROFILES = [
     { name: 'GPT-5.5', inputCostPerMillion: 2.9 },
     { name: 'Opus 4.7', inputCostPerMillion: 8.0 },
     { name: 'Gemini 3.1 Pro', inputCostPerMillion: 1.5 },
     { name: 'Kimi K2.6', inputCostPerMillion: 0.4 },
 ];
-function parseModelPricing(input) {
+function readProfileName(record, index) {
+    const name = record.name ?? record.profile;
+    if (typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error(`pricing-profiles[${index}] must include a non-empty "name" or "profile" string.`);
+    }
+    return name.trim();
+}
+function parsePricingProfiles(input) {
     const trimmed = input.trim();
     if (!trimmed) {
-        return exports.DEFAULT_MODEL_PRICING;
+        return exports.DEFAULT_PRICING_PROFILES;
     }
     let parsed;
     try {
         parsed = JSON.parse(trimmed);
     }
     catch {
-        throw new Error('model-pricing must be valid JSON.');
+        throw new Error('pricing-profiles must be valid JSON.');
     }
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error('model-pricing must be a non-empty JSON array.');
+    if (!Array.isArray(parsed)) {
+        throw new Error('pricing-profiles must be a JSON array.');
+    }
+    if (parsed.length === 0) {
+        return [];
     }
     return parsed.map((entry, index) => {
         if (typeof entry !== 'object' || entry === null) {
-            throw new Error(`model-pricing[${index}] must be an object.`);
+            throw new Error(`pricing-profiles[${index}] must be an object.`);
         }
         const record = entry;
-        const name = record.name;
         const inputCostPerMillion = record.inputCostPerMillion;
-        if (typeof name !== 'string' || name.trim().length === 0) {
-            throw new Error(`model-pricing[${index}].name must be a non-empty string.`);
-        }
         if (typeof inputCostPerMillion !== 'number' || inputCostPerMillion < 0) {
-            throw new Error(`model-pricing[${index}].inputCostPerMillion must be a non-negative number.`);
+            throw new Error(`pricing-profiles[${index}].inputCostPerMillion must be a non-negative number.`);
         }
         return {
-            name: name.trim(),
+            name: readProfileName(record, index),
             inputCostPerMillion,
         };
     });
 }
+/** @deprecated Use parsePricingProfiles */
+function parseModelPricing(input) {
+    return parsePricingProfiles(input);
+}
+/** @deprecated Use DEFAULT_PRICING_PROFILES */
+exports.DEFAULT_MODEL_PRICING = exports.DEFAULT_PRICING_PROFILES;
 function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
     return (estimatedTokens / 1_000_000) * inputCostPerMillion;
+}
+function parseBooleanInput(value, defaultValue) {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) {
+        return defaultValue;
+    }
+    if (['true', '1', 'yes'].includes(trimmed)) {
+        return true;
+    }
+    if (['false', '0', 'no'].includes(trimmed)) {
+        return false;
+    }
+    throw new Error(`Invalid boolean value: "${value}". Use true or false.`);
 }
 
 

@@ -42,10 +42,14 @@ export interface PullRequestAnalysis {
 
 export interface CommentOptions {
   maxHighImpactItems: number;
-  modelPricing: ModelPricing[];
+  showCostTable: boolean;
+  pricingProfiles: PricingProfile[];
 }
 
-export interface ModelPricing {
+export interface PricingProfile {
   name: string;
   inputCostPerMillion: number;
 }
+
+/** @deprecated Use PricingProfile */
+export type ModelPricing = PricingProfile;
