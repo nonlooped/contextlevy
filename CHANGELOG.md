@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-05-24
+
+### Changed
+
+- Package contents are now explicitly allowlisted and npm publishing is disabled.
+- Vitest and transitive dependencies were updated, with an `undici` override to avoid known vulnerable versions.
+
+### Fixed
+
+- Pull request analysis now reads ContextLevy config from the base branch so PRs cannot silence checks by changing config in the same diff.
+- Comment write permission failures now warn instead of failing the workflow, with GitHub App runs retrying a distinct `GITHUB_TOKEN` fallback when available.
+- PR comment Markdown now escapes filenames, labels, and pricing profile names before rendering tables.
+- Config numeric fields now reject non-finite values and fractional integer settings.
+- Dogfood coverage fixtures are no longer hidden by `.gitignore`.
+
+### Removed
+
+- Deprecated v1 pricing aliases and the obsolete v1 implementation plan.
+
+### Security
+
+- Added a security reporting policy.
+
 ## [2.0.0] — 2026-05-24
 
 ### Added
@@ -32,5 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/unloopedmido/contextlevy/compare/v1.3...v2.0.0

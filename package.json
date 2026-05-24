@@ -1,6 +1,6 @@
 {
   "name": "contextlevy",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "GitHub Action: estimate AI agent context overhead from PR diffs",
   "license": "MIT",
   "private": true,
