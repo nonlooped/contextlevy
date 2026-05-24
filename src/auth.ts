@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import { createAppAuth } from '@octokit/auth-app';
+import { Octokit } from '@octokit/rest';
 
 export type TokenSource = 'app' | 'github-token' | 'GITHUB_TOKEN';
 
@@ -23,6 +24,7 @@ export function normalizePrivateKey(privateKey: string): string {
 export function readAppCredentials(): AppCredentials | null {
   const appId =
     core.getInput('app-client-id').trim() ||
+    process.env.CONTEXTLEVY_APP_ID?.trim() ||
     process.env.CONTEXTLEVY_APP_CLIENT_ID?.trim() ||
     '';
   const privateKeyRaw =
@@ -46,20 +48,53 @@ export function readAppCredentials(): AppCredentials | null {
   };
 }
 
+export function assertValidAppId(appId: string): void {
+  if (/^Iv/i.test(appId)) {
+    throw new Error(
+      'CONTEXTLEVY_APP_CLIENT_ID looks like a GitHub OAuth Client ID (Iv...). ' +
+        'Use the numeric GitHub App ID from your app settings instead, or set CONTEXTLEVY_APP_ID.',
+    );
+  }
+}
+
 export async function createAppInstallationToken(
   credentials: AppCredentials,
   owner: string,
   repo: string,
 ): Promise<string> {
+  assertValidAppId(credentials.appId);
+
   const auth = createAppAuth({
     appId: credentials.appId,
     privateKey: credentials.privateKey,
   });
 
+  const installationIdInput =
+    core.getInput('app-installation-id').trim() ||
+    process.env.CONTEXTLEVY_APP_INSTALLATION_ID?.trim() ||
+    '';
+
+  let installationId = installationIdInput ? Number(installationIdInput) : undefined;
+
+  if (!installationId || Number.isNaN(installationId)) {
+    const appOctokit = new Octokit({
+      authStrategy: createAppAuth,
+      auth: {
+        appId: credentials.appId,
+        privateKey: credentials.privateKey,
+      },
+    });
+
+    const { data: installation } = await appOctokit.rest.apps.getRepoInstallation({
+      owner,
+      repo,
+    });
+    installationId = installation.id;
+  }
+
   const { token } = await auth({
     type: 'installation',
-    owner,
-    repo,
+    installationId,
   });
 
   if (!token) {

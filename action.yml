@@ -14,6 +14,9 @@ inputs:
   app-private-key:
     description: 'ContextLevy GitHub App private key PEM. Falls back to CONTEXTLEVY_APP_PRIVATE_KEY env var.'
     required: false
+  app-installation-id:
+    description: 'Optional installation ID override. Falls back to CONTEXTLEVY_APP_INSTALLATION_ID env var.'
+    required: false
   token-threshold:
     description: Minimum estimated tokens before posting a PR comment
     required: false
