@@ -143,7 +143,26 @@ export async function run(): Promise<void> {
     pricingProfiles,
   });
 
-  await upsertComment(octokit, owner, repo, pullNumber, body);
+  try {
+    await upsertComment(octokit, owner, repo, pullNumber, body);
+  } catch (error) {
+    if (source !== 'app' || !isCommentAccessError(error)) {
+      throw error;
+    }
+
+    const fallbackToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    if (!fallbackToken || fallbackToken === token) {
+      throw new Error(
+        'ContextLevy GitHub App token could not write PR comments. Grant the app Issues: Read & write and Pull requests: Read & write permissions, then accept the updated installation request.',
+      );
+    }
+
+    core.warning(
+      'ContextLevy GitHub App token could not write PR comments; retrying comment upsert with GITHUB_TOKEN.',
+    );
+    core.setOutput('token-source', 'GITHUB_TOKEN');
+    await upsertComment(github.getOctokit(fallbackToken), owner, repo, pullNumber, body);
+  }
 }
 
 if (require.main === module) {
