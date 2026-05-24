@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-24
+
+### Added
+
+- Configurable `ignore-paths` and `allow-paths` glob patterns.
+- Optional `fail-on-severity` and `fail-above-tokens` workflow failure modes.
+- Expanded bloat classification (vendor, source maps, protobuf, OpenAPI, caches, test output, fixtures, binary assets).
+- Tool-agnostic agent indexing suggestions in PR comments.
+- CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue/PR templates, and docs/COMPARISON.md.
+
+### Changed
+
+- README quick start is app-first; self-hosted GitHub App setup moved to CONTRIBUTING.md.
+
 ## [2.0.1] — 2026-05-24
 
 ### Changed
@@ -55,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/unloopedmido/contextlevy/compare/v1.3...v2.0.0
