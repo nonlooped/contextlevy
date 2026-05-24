@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-05-25
+
+### Added
+
+- Local `contextlevy` CLI with `diff` command for pre-PR context checks (`npm install -g contextlevy`).
+- Public agent skill installable via `npx skills add unloopedmido/contextlevy --skill contextlevy`.
+- Optional `estimation-mode: tokenizer` using local `cl100k_base` BPE counting (no network calls).
+- Configurable `custom-rules` for project-specific path classification.
+- Configurable `severity-thresholds` for risk level boundaries.
+- JSON Schema for `.contextlevy.yml` editor autocomplete (`docs/schema/contextlevy.schema.json`).
+- Action output `estimation-mode` and documented output types for downstream steps.
+- GitHub Actions job summary with risk level and top findings.
+- Automated release workflow on semver tag push with npm trusted publishing (OIDC).
+- Test coverage enforcement in CI (≥70% lines/functions/statements).
+- `docs/EXAMPLES.md` with benchmark table, monorepo recipes, and output examples.
+
+### Changed
+
+- npm package ships CLI only (`lib/`); Action deps moved to devDependencies (~21 KB tarball).
+- Cost tables now show ±50% uncertainty ranges and clearer illustrative-pricing disclaimers.
+- README adds before/after, audience table, CLI quick start, agent skill install, and fork PR guidance.
+- SECURITY.md adds supported versions, minimum permissions, and fork PR behavior.
+- COMPARISON.md adds `.gitattributes` diff-filter positioning.
+
 ## [2.1.0] — 2026-05-24
 
 ### Added
@@ -69,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/unloopedmido/contextlevy/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/unloopedmido/contextlevy/compare/v1.3...v2.0.0
