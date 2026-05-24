@@ -38,6 +38,18 @@ async function listAllPullRequestFiles(
   return files;
 }
 
+function isCommentAccessError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const candidate = error as { status?: number; message?: string };
+  return (
+    candidate.status === 403 ||
+    Boolean(candidate.message?.includes('Resource not accessible by integration'))
+  );
+}
+
 async function upsertComment(
   octokit: ReturnType<typeof github.getOctokit>,
   owner: string,
@@ -55,14 +67,24 @@ async function upsertComment(
   const existing = comments.find((comment) => comment.body?.includes(COMMENT_MARKER));
 
   if (existing) {
-    await octokit.rest.issues.updateComment({
-      owner,
-      repo,
-      comment_id: existing.id,
-      body,
-    });
-    core.info(`Updated ContextLevy comment (${existing.id}).`);
-    return;
+    try {
+      await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: existing.id,
+        body,
+      });
+      core.info(`Updated ContextLevy comment (${existing.id}).`);
+      return;
+    } catch (error) {
+      if (!isCommentAccessError(error)) {
+        throw error;
+      }
+
+      core.info(
+        `Cannot update existing ContextLevy comment (${existing.id}) with the current token; creating a new comment.`,
+      );
+    }
   }
 
   await octokit.rest.issues.createComment({

@@ -30348,6 +30348,14 @@ async function listAllPullRequestFiles(octokit, owner, repo, pullNumber) {
     }
     return files;
 }
+function isCommentAccessError(error) {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const candidate = error;
+    return (candidate.status === 403 ||
+        Boolean(candidate.message?.includes('Resource not accessible by integration')));
+}
 async function upsertComment(octokit, owner, repo, issueNumber, body) {
     const { data: comments } = await octokit.rest.issues.listComments({
         owner,
@@ -30357,14 +30365,22 @@ async function upsertComment(octokit, owner, repo, issueNumber, body) {
     });
     const existing = comments.find((comment) => comment.body?.includes(comment_1.COMMENT_MARKER));
     if (existing) {
-        await octokit.rest.issues.updateComment({
-            owner,
-            repo,
-            comment_id: existing.id,
-            body,
-        });
-        core.info(`Updated ContextLevy comment (${existing.id}).`);
-        return;
+        try {
+            await octokit.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+            });
+            core.info(`Updated ContextLevy comment (${existing.id}).`);
+            return;
+        }
+        catch (error) {
+            if (!isCommentAccessError(error)) {
+                throw error;
+            }
+            core.info(`Cannot update existing ContextLevy comment (${existing.id}) with the current token; creating a new comment.`);
+        }
     }
     await octokit.rest.issues.createComment({
         owner,
