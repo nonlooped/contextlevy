@@ -67,23 +67,12 @@ describe('loadConfigFile', () => {
 });
 
 describe('resolveSettings', () => {
-  it('uses config values when action inputs are empty', () => {
-    const settings = resolveSettings(
-      {
-        tokenThreshold: 500,
-        maxHighImpactItems: 3,
-        showCostTable: false,
-      },
-      {
-        tokenThreshold: '',
-        largeFileTokenThreshold: '',
-        maxHighImpactItems: '',
-        showCostTable: '',
-        pricingProfiles: '',
-        modelPricing: '',
-        commentFormat: '',
-      },
-    );
+  it('uses config values with defaults for omitted keys', () => {
+    const settings = resolveSettings({
+      tokenThreshold: 500,
+      maxHighImpactItems: 3,
+      showCostTable: false,
+    });
 
     expect(settings).toEqual({
       tokenThreshold: 500,
@@ -95,25 +84,14 @@ describe('resolveSettings', () => {
     });
   });
 
-  it('lets action inputs override config values', () => {
-    const settings = resolveSettings(
-      {
-        tokenThreshold: 500,
-        maxHighImpactItems: 3,
-      },
-      {
-        tokenThreshold: '1500',
-        largeFileTokenThreshold: '',
-        maxHighImpactItems: '8',
-        showCostTable: '',
-        pricingProfiles: '',
-        modelPricing: '',
-        commentFormat: 'compact',
-      },
-    );
+  it('uses built-in defaults when no config file is present', () => {
+    const settings = resolveSettings(null);
 
-    expect(settings.tokenThreshold).toBe(1500);
-    expect(settings.maxHighImpactItems).toBe(8);
-    expect(settings.commentFormat).toBe('compact');
+    expect(settings.tokenThreshold).toBe(1000);
+    expect(settings.largeFileTokenThreshold).toBe(5000);
+    expect(settings.maxHighImpactItems).toBe(5);
+    expect(settings.showCostTable).toBe(true);
+    expect(settings.commentFormat).toBe('default');
+    expect(settings.pricingProfiles.length).toBeGreaterThan(0);
   });
 });
