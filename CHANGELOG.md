@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-05-25
+
+### Fixed
+
+- CLI `default` and `compact` output now use terminal styling with aligned tables instead of raw GitHub Markdown.
+- npm package bin path and publish metadata for reliable local publishing.
+
 ## [2.2.0] — 2026-05-25
 
 ### Added
@@ -93,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/unloopedmido/contextlevy/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/unloopedmido/contextlevy/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...v2.0.1
