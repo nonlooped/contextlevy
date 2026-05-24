@@ -30065,7 +30065,7 @@ function readAppCredentials() {
         return null;
     }
     if (!appId || !privateKeyRaw) {
-        throw new Error('GitHub App auth requires both CONTEXTLEVY_APP_CLIENT_ID and CONTEXTLEVY_APP_PRIVATE_KEY.');
+        throw new Error('GitHub App auth requires both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY.');
     }
     return {
         appId,
@@ -30074,8 +30074,8 @@ function readAppCredentials() {
 }
 function assertValidAppId(appId) {
     if (/^Iv/i.test(appId)) {
-        throw new Error('CONTEXTLEVY_APP_CLIENT_ID looks like a GitHub OAuth Client ID (Iv...). ' +
-            'Use the numeric GitHub App ID from your app settings instead, or set CONTEXTLEVY_APP_ID.');
+        throw new Error('CONTEXTLEVY_APP_ID looks like a GitHub OAuth Client ID (Iv...). ' +
+            'Use the numeric GitHub App ID from your app settings instead.');
     }
 }
 async function createAppInstallationToken(credentials, owner, repo) {
@@ -30423,6 +30423,9 @@ exports.DEFAULT_CONFIG_PATHS = [
     '.contextlevy.yml',
     '.contextlevy.yaml',
     '.contextlevy.json',
+    '.github/contextlevy.yml',
+    '.github/contextlevy.yaml',
+    '.github/contextlevy.json',
     'contextlevy.yml',
     'contextlevy.yaml',
     'contextlevy.json',
@@ -30651,14 +30654,23 @@ function isCommentAccessError(error) {
     return (candidate.status === 403 ||
         Boolean(candidate.message?.includes('Resource not accessible by integration')));
 }
-async function upsertComment(octokit, owner, repo, issueNumber, body) {
-    const { data: comments } = await octokit.rest.issues.listComments({
+async function findContextLevyComment(octokit, owner, repo, issueNumber) {
+    for await (const response of octokit.paginate.iterator(octokit.rest.issues.listComments, {
         owner,
         repo,
         issue_number: issueNumber,
         per_page: 100,
-    });
-    const existing = comments.find((comment) => comment.body?.includes(comment_1.COMMENT_MARKER));
+    })) {
+        for (const comment of response.data) {
+            if (comment.body?.includes(comment_1.COMMENT_MARKER)) {
+                return { id: comment.id };
+            }
+        }
+    }
+    return undefined;
+}
+async function upsertComment(octokit, owner, repo, issueNumber, body) {
+    const existing = await findContextLevyComment(octokit, owner, repo, issueNumber);
     if (existing) {
         try {
             await octokit.rest.issues.updateComment({
@@ -30687,21 +30699,15 @@ async function upsertComment(octokit, owner, repo, issueNumber, body) {
 }
 async function run() {
     const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
-    const configPathInput = core.getInput('config-path');
-    const config = (0, config_1.loadConfigFile)(workspaceRoot, configPathInput);
-    const resolvedConfigPath = (0, config_1.resolveConfigPath)(workspaceRoot, configPathInput);
+    const config = (0, config_1.loadConfigFile)(workspaceRoot);
+    const resolvedConfigPath = (0, config_1.resolveConfigPath)(workspaceRoot);
     if (resolvedConfigPath) {
         core.info(`Loaded ContextLevy config from ${resolvedConfigPath}.`);
     }
-    const settings = (0, settings_1.resolveSettings)(config, {
-        tokenThreshold: core.getInput('token-threshold'),
-        largeFileTokenThreshold: core.getInput('large-file-token-threshold'),
-        maxHighImpactItems: core.getInput('max-high-impact-items'),
-        showCostTable: core.getInput('show-cost-table'),
-        pricingProfiles: core.getInput('pricing-profiles'),
-        modelPricing: core.getInput('model-pricing'),
-        commentFormat: core.getInput('comment-format'),
-    });
+    else {
+        core.info('No ContextLevy config file found — using defaults.');
+    }
+    const settings = (0, settings_1.resolveSettings)(config);
     const context = github.context;
     if (!context.payload.pull_request) {
         core.info('Not a pull_request event — skipping.');
@@ -30769,21 +30775,13 @@ exports.DEFAULT_MODEL_PRICING = exports.DEFAULT_PRICING_PROFILES = void 0;
 exports.parsePricingProfiles = parsePricingProfiles;
 exports.parseModelPricing = parseModelPricing;
 exports.estimateSessionCost = estimateSessionCost;
-exports.parseBooleanInput = parseBooleanInput;
 const config_1 = __nccwpck_require__(2973);
 exports.DEFAULT_PRICING_PROFILES = [
-    { name: 'GPT-5.5', inputCostPerMillion: 2.9 },
-    { name: 'Opus 4.7', inputCostPerMillion: 8.0 },
-    { name: 'Gemini 3.1 Pro', inputCostPerMillion: 1.5 },
-    { name: 'Kimi K2.6', inputCostPerMillion: 0.4 },
+    { name: 'GPT-5.5', inputCostPerMillion: 5.0 },
+    { name: 'Opus 4.7', inputCostPerMillion: 5.0 },
+    { name: 'Gemini 3.1 Pro', inputCostPerMillion: 2.0 },
+    { name: 'Kimi K2.6', inputCostPerMillion: 0.95 },
 ];
-function readProfileName(record, index) {
-    const name = record.name ?? record.profile;
-    if (typeof name !== 'string' || name.trim().length === 0) {
-        throw new Error(`pricing-profiles[${index}] must include a non-empty "name" or "profile" string.`);
-    }
-    return name.trim();
-}
 function parsePricingProfiles(input) {
     const trimmed = input.trim();
     if (!trimmed) {
@@ -30806,19 +30804,6 @@ function parseModelPricing(input) {
 exports.DEFAULT_MODEL_PRICING = exports.DEFAULT_PRICING_PROFILES;
 function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
     return (estimatedTokens / 1_000_000) * inputCostPerMillion;
-}
-function parseBooleanInput(value, defaultValue) {
-    const trimmed = value.trim().toLowerCase();
-    if (!trimmed) {
-        return defaultValue;
-    }
-    if (['true', '1', 'yes'].includes(trimmed)) {
-        return true;
-    }
-    if (['false', '0', 'no'].includes(trimmed)) {
-        return false;
-    }
-    throw new Error(`Invalid boolean value: "${value}". Use true or false.`);
 }
 
 
@@ -30891,7 +30876,8 @@ const RULES = [
         },
     },
     {
-        test: (f) => basename(f) === 'AGENTS.md' ||
+        test: (f) => /(?:^|\/)\.agents(?:\/|$)/.test(f) ||
+            basename(f) === 'AGENTS.md' ||
             basename(f) === '.cursorrules' ||
             /^\.cursor\/rules\//.test(f) ||
             /^\.github\/copilot-instructions\.md$/.test(f),
@@ -30940,7 +30926,6 @@ function largeFileMatch() {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveSettings = resolveSettings;
-const config_1 = __nccwpck_require__(2973);
 const pricing_1 = __nccwpck_require__(4309);
 const DEFAULTS = {
     tokenThreshold: 1000,
@@ -30950,45 +30935,14 @@ const DEFAULTS = {
     pricingProfiles: pricing_1.DEFAULT_PRICING_PROFILES,
     commentFormat: 'default',
 };
-function readNumberInput(value, fieldName) {
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return undefined;
-    }
-    const parsed = Number(trimmed);
-    if (Number.isNaN(parsed) || parsed < 0) {
-        throw new Error(`${fieldName} must be a non-negative number.`);
-    }
-    return parsed;
-}
-function resolvePricingProfiles(config, inputs) {
-    const pricingProfilesInput = inputs.pricingProfiles.trim() || inputs.modelPricing.trim();
-    if (pricingProfilesInput) {
-        return (0, pricing_1.parsePricingProfiles)(pricingProfilesInput);
-    }
-    if (config?.pricingProfiles !== undefined) {
-        return config.pricingProfiles;
-    }
-    return DEFAULTS.pricingProfiles;
-}
-function resolveSettings(config, inputs) {
-    const showCostTableInput = inputs.showCostTable.trim();
-    const showCostTableDefault = config?.showCostTable !== undefined ? config.showCostTable : DEFAULTS.showCostTable;
+function resolveSettings(config) {
     return {
-        tokenThreshold: readNumberInput(inputs.tokenThreshold, 'token-threshold') ??
-            config?.tokenThreshold ??
-            DEFAULTS.tokenThreshold,
-        largeFileTokenThreshold: readNumberInput(inputs.largeFileTokenThreshold, 'large-file-token-threshold') ??
-            config?.largeFileTokenThreshold ??
-            DEFAULTS.largeFileTokenThreshold,
-        maxHighImpactItems: readNumberInput(inputs.maxHighImpactItems, 'max-high-impact-items') ??
-            config?.maxHighImpactItems ??
-            DEFAULTS.maxHighImpactItems,
-        showCostTable: (0, pricing_1.parseBooleanInput)(showCostTableInput, showCostTableDefault),
-        pricingProfiles: resolvePricingProfiles(config, inputs),
-        commentFormat: (0, config_1.parseCommentFormat)(inputs.commentFormat, 'comment-format') ??
-            config?.commentFormat ??
-            DEFAULTS.commentFormat,
+        tokenThreshold: config?.tokenThreshold ?? DEFAULTS.tokenThreshold,
+        largeFileTokenThreshold: config?.largeFileTokenThreshold ?? DEFAULTS.largeFileTokenThreshold,
+        maxHighImpactItems: config?.maxHighImpactItems ?? DEFAULTS.maxHighImpactItems,
+        showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
+        pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
+        commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
     };
 }
 
