@@ -30199,6 +30199,18 @@ const RISK_LEVEL_EMOJI = {
 function formatRiskLevel(riskLevel) {
     return `${RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
 }
+const COMPACT_RISK_LEVEL_EMOJI = {
+    ...RISK_LEVEL_EMOJI,
+    Critical: '🔴',
+};
+function formatCompactRiskLevel(riskLevel) {
+    return `${COMPACT_RISK_LEVEL_EMOJI[riskLevel]} **${riskLevel}**`;
+}
+function blockquote(lines) {
+    return lines
+        .map((line) => (line.length === 0 ? '>' : `> ${line}`))
+        .join('\n');
+}
 function formatUsd(value) {
     return value.toLocaleString('en-US', {
         style: 'currency',
@@ -30263,23 +30275,41 @@ function formatCompactFindings(files, maxItems) {
     if (shown.length === 0) {
         return null;
     }
-    const parts = shown.map((file) => `+${formatCompactTokens(file.estimatedTokens)} \`${formatShortPath(file.filename)}\``);
+    const parts = shown.map((file) => `\`${formatShortPath(file.filename)}\` **+${formatCompactTokens(file.estimatedTokens)}**`);
     const remaining = files.length - shown.length;
     if (remaining > 0) {
-        parts.push(`+${remaining} more`);
+        parts.push(`**+${remaining} more**`);
     }
     return parts.join(' · ');
 }
-function formatCompactSuggestions(suggestions) {
+function formatCompactFixSuggestion(suggestion) {
+    if (/keep build output out of version control/i.test(suggestion)) {
+        return 'remove build output';
+    }
+    if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add `coverage/` to `.gitignore`';
+    }
+    if (/avoid committing generated output unless required/i.test(suggestion)) {
+        return 'avoid generated output';
+    }
+    if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add logs to `.gitignore`';
+    }
+    if (/exclude generated\/coverage artifacts/i.test(suggestion)) {
+        return 'exclude artifacts from agent indexing';
+    }
+    return suggestion.replace(/\.$/, '');
+}
+function formatCompactFixLine(suggestions) {
     if (suggestions.length === 0) {
         return null;
     }
     return suggestions
         .slice(0, COMPACT_MAX_SUGGESTIONS)
-        .map((suggestion) => suggestion.replace(/\.$/, ''))
-        .join('; ');
+        .map((suggestion) => formatCompactFixSuggestion(suggestion))
+        .join(' · ');
 }
-function formatInlineCostRange(totalEstimatedTokens, pricingProfiles) {
+function formatCompactCostRange(totalEstimatedTokens, pricingProfiles) {
     if (pricingProfiles.length === 0) {
         return null;
     }
@@ -30287,37 +30317,38 @@ function formatInlineCostRange(totalEstimatedTokens, pricingProfiles) {
     const min = Math.min(...costs);
     const max = Math.max(...costs);
     if (min === max) {
-        return `~${formatUsd(min)}/session est. input`;
+        return `**Worst-case input cost:** ~${formatUsd(min)}/session`;
     }
-    return `~${formatUsd(min)}–${formatUsd(max)}/session est. input`;
+    return `**Worst-case input cost:** ~${formatUsd(min)}–${formatUsd(max)}/session`;
 }
 function formatCompactComment(analysis, options) {
     const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
     const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
     const findings = getFindings(analysis, options.maxHighImpactItems);
     const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
-    const footerParts = [];
-    if (options.showCostTable) {
-        const costLine = formatInlineCostRange(analysis.totalEstimatedTokens, options.pricingProfiles);
-        if (costLine) {
-            footerParts.push(costLine);
-        }
-    }
-    const suggestions = formatCompactSuggestions(buildSuggestions(analysis));
-    if (suggestions) {
-        footerParts.push(suggestions);
-    }
-    const sections = [
-        `🤖 **ContextLevy** · ${formatRiskLevel(riskLevel)} · **~${formatCompactTokens(analysis.totalEstimatedTokens)}** tokens`,
+    const costLine = options.showCostTable
+        ? formatCompactCostRange(analysis.totalEstimatedTokens, options.pricingProfiles)
+        : null;
+    const fixLine = formatCompactFixLine(buildSuggestions(analysis));
+    const quoteLines = [
+        `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)} · **+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens**`,
+        '',
     ];
     if (findingsLine) {
-        sections.push(findingsLine);
+        quoteLines.push(findingsLine, '');
     }
-    if (footerParts.length > 0) {
-        sections.push(footerParts.join(' · '));
+    const detailLines = [];
+    if (costLine) {
+        detailLines.push(`${costLine}  `);
     }
-    sections.push(exports.COMMENT_MARKER);
-    return sections.join('\n');
+    if (fixLine) {
+        detailLines.push(`**Fix:** ${fixLine}`);
+    }
+    if (detailLines.length > 0) {
+        quoteLines.push(...detailLines, '');
+    }
+    quoteLines.push('<sub>Estimated context risk only. Agents may not read every changed file.</sub>');
+    return [exports.COMMENT_MARKER, blockquote(quoteLines)].join('\n');
 }
 function formatContextTable(analysis, maxItems) {
     const rows = getFindings(analysis, maxItems);
