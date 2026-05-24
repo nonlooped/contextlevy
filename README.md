@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: unloopedmido/contextlevy@v1
+      - uses: unloopedmido/contextlevy@v2
         env:
           CONTEXTLEVY_APP_ID: ${{ vars.CONTEXTLEVY_APP_ID }}
           CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
@@ -153,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: unloopedmido/contextlevy@v1
+      - uses: unloopedmido/contextlevy@v2
         with:
           github-token: ${{ github.token }}
 ```
@@ -464,7 +464,7 @@ git push origin v1 --force
 Consumers should usually pin:
 
 ```yaml
-- uses: unloopedmido/contextlevy@v1
+- uses: unloopedmido/contextlevy@v2
 ```
 
 For maximum supply-chain safety, consumers can pin a full commit SHA.
