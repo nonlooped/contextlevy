@@ -6,7 +6,13 @@ branding:
 
 inputs:
   github-token:
-    description: 'GitHub token with pull-requests: write and contents: read'
+    description: 'Fallback token with pull-requests: write when GitHub App auth is not configured'
+    required: false
+  app-client-id:
+    description: 'ContextLevy GitHub App ID. Falls back to CONTEXTLEVY_APP_CLIENT_ID env var.'
+    required: false
+  app-private-key:
+    description: 'ContextLevy GitHub App private key PEM. Falls back to CONTEXTLEVY_APP_PRIVATE_KEY env var.'
     required: false
   token-threshold:
     description: Minimum estimated tokens before posting a PR comment
@@ -38,6 +44,8 @@ outputs:
     description: Total estimated AI-context tokens added by this PR
   analyzed-file-count:
     description: Number of changed files included in the estimate
+  token-source:
+    description: 'Auth source used for the run: app, github-token, or GITHUB_TOKEN'
 
 runs:
   using: node20

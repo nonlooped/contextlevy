@@ -8,6 +8,13 @@ It does **not** call an LLM and does **not** send your code anywhere. Estimates 
 
 ## Quick start
 
+### Recommended: ContextLevy GitHub App
+
+Install the ContextLevy GitHub App on your repository, then add:
+
+- Repository variable: `CONTEXTLEVY_APP_CLIENT_ID` (your GitHub App ID)
+- Repository secret: `CONTEXTLEVY_APP_PRIVATE_KEY` (PEM private key)
+
 ```yaml
 name: ContextLevy
 on:
@@ -24,15 +31,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: unloopedmido/contextlevy@v1
-        with:
-          github-token: ${{ github.token }}
+        env:
+          CONTEXTLEVY_APP_CLIENT_ID: ${{ vars.CONTEXTLEVY_APP_CLIENT_ID }}
+          CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
+```
+
+When app credentials are present, ContextLevy mints an installation token for the current repository automatically.
+
+### Fallback: `GITHUB_TOKEN`
+
+If app credentials are not configured, ContextLevy falls back to `github-token` or the workflow `GITHUB_TOKEN`:
+
+```yaml
+- uses: unloopedmido/contextlevy@v1
+  with:
+    github-token: ${{ github.token }}
 ```
 
 ## Inputs
 
 | Input | Default | Description |
 |-------|---------|-------------|
-| `github-token` | `GITHUB_TOKEN` env | Token with `pull-requests: write` |
+| `app-client-id` | `CONTEXTLEVY_APP_CLIENT_ID` env | ContextLevy GitHub App ID |
+| `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | ContextLevy GitHub App private key PEM |
+| `github-token` | `GITHUB_TOKEN` env | Fallback token with `pull-requests: write` |
 | `token-threshold` | `1000` | Skip commenting below this estimated token total |
 | `large-file-token-threshold` | `5000` | Marks individual files as large context risks |
 | `max-high-impact-items` | `5` | Max files listed in the context table |
