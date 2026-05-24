@@ -31,6 +31,17 @@ export function getRiskLevel(
   return 'Low';
 }
 
+const RISK_LEVEL_EMOJI: Record<ReturnType<typeof getRiskLevel>, string> = {
+  Low: '🟢',
+  Medium: '🟡',
+  High: '🔴',
+  Critical: '⛔',
+};
+
+export function formatRiskLevel(riskLevel: ReturnType<typeof getRiskLevel>): string {
+  return `${RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
+}
+
 function formatUsd(value: number): string {
   return value.toLocaleString('en-US', {
     style: 'currency',
@@ -81,11 +92,16 @@ export function buildSuggestions(analysis: PullRequestAnalysis): string[] {
   return suggestions;
 }
 
+function formatFindingCell(filename: string, label: string): string {
+  return `\`${filename}\`<br/>${label}`;
+}
+
 function formatContextTable(
   analysis: PullRequestAnalysis,
   maxItems: number,
 ): string {
   const rows = getHighImpactFiles(analysis, maxItems);
+  const tableHeader = ['| Added | Finding |', '|---:|---|'];
 
   if (rows.length === 0) {
     const topFiles = analysis.files.slice(0, maxItems);
@@ -95,20 +111,18 @@ function formatContextTable(
 
     const fallbackRows = topFiles.map(
       (file) =>
-        `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`,
+        `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`,
     );
 
-    return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...fallbackRows].join(
-      '\n',
-    );
+    return [...tableHeader, ...fallbackRows].join('\n');
   }
 
   const tableRows = rows.map(
     (file) =>
-      `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`,
+      `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`,
   );
 
-  return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
+  return [...tableHeader, ...tableRows].join('\n');
 }
 
 export function formatPricingCostSection(
@@ -148,7 +162,7 @@ export function formatComment(
     '',
     `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
     '',
-    `**Risk level:** ${riskLevel}`,
+    `**Risk level:** ${formatRiskLevel(riskLevel)}`,
     '',
     formatContextTable(analysis, options.maxHighImpactItems),
   ];

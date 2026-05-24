@@ -30162,6 +30162,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMMENT_MARKER = void 0;
 exports.formatCompactTokens = formatCompactTokens;
 exports.getRiskLevel = getRiskLevel;
+exports.formatRiskLevel = formatRiskLevel;
 exports.buildSuggestions = buildSuggestions;
 exports.formatPricingCostSection = formatPricingCostSection;
 exports.formatComment = formatComment;
@@ -30186,6 +30187,15 @@ function getRiskLevel(totalTokens, highImpactCount) {
         return 'Medium';
     }
     return 'Low';
+}
+const RISK_LEVEL_EMOJI = {
+    Low: '🟢',
+    Medium: '🟡',
+    High: '🔴',
+    Critical: '⛔',
+};
+function formatRiskLevel(riskLevel) {
+    return `${RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
 }
 function formatUsd(value) {
     return value.toLocaleString('en-US', {
@@ -30228,18 +30238,22 @@ function buildSuggestions(analysis) {
     }
     return suggestions;
 }
+function formatFindingCell(filename, label) {
+    return `\`${filename}\`<br/>${label}`;
+}
 function formatContextTable(analysis, maxItems) {
     const rows = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
+    const tableHeader = ['| Added | Finding |', '|---:|---|'];
     if (rows.length === 0) {
         const topFiles = analysis.files.slice(0, maxItems);
         if (topFiles.length === 0) {
             return 'No added context detected in this PR diff.';
         }
-        const fallbackRows = topFiles.map((file) => `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`);
-        return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...fallbackRows].join('\n');
+        const fallbackRows = topFiles.map((file) => `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`);
+        return [...tableHeader, ...fallbackRows].join('\n');
     }
-    const tableRows = rows.map((file) => `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`);
-    return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
+    const tableRows = rows.map((file) => `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`);
+    return [...tableHeader, ...tableRows].join('\n');
 }
 function formatPricingCostSection(totalEstimatedTokens, pricingProfiles) {
     const rows = pricingProfiles.map((profile) => {
@@ -30267,7 +30281,7 @@ function formatComment(analysis, options) {
         '',
         `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
         '',
-        `**Risk level:** ${riskLevel}`,
+        `**Risk level:** ${formatRiskLevel(riskLevel)}`,
         '',
         formatContextTable(analysis, options.maxHighImpactItems),
     ];
