@@ -2,6 +2,6 @@ token-threshold: 500
 comment-format: default
 pricing-profiles:
   - name: GPT-5.5
-    inputCostPerMillion: 2.9
+    inputCostPerMillion: 5.0
   - name: Kimi K2.6
-    inputCostPerMillion: 0.4
+    inputCostPerMillion: 0.95
