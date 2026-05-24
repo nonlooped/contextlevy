@@ -17,22 +17,30 @@ inputs:
   app-installation-id:
     description: 'Optional installation ID override. Falls back to CONTEXTLEVY_APP_INSTALLATION_ID env var.'
     required: false
+  config-path:
+    description: 'Optional path to a ContextLevy config file. Auto-discovers .contextlevy.yml, .contextlevy.yaml, or .contextlevy.json when omitted.'
+    required: false
+    default: ''
   token-threshold:
-    description: Minimum estimated tokens before posting a PR comment
+    description: Minimum estimated tokens before posting a PR comment. Overrides the config file when set.
     required: false
-    default: '1000'
+    default: ''
   large-file-token-threshold:
-    description: Per-file token count that triggers the large-file category
+    description: Per-file token count that triggers the large-file category. Overrides the config file when set.
     required: false
-    default: '5000'
+    default: ''
   max-high-impact-items:
-    description: Maximum number of high-impact files listed in the comment
+    description: Maximum number of high-impact files listed in the comment. Overrides the config file when set.
     required: false
-    default: '5'
+    default: ''
   show-cost-table:
-    description: Whether to include the pricing cost table in the PR comment
+    description: Whether to include the pricing cost table in the PR comment. Overrides the config file when set.
     required: false
-    default: 'true'
+    default: ''
+  comment-format:
+    description: 'PR comment layout: "default" (full) or "compact" (minimal). Overrides the config file when set.'
+    required: false
+    default: ''
   pricing-profiles:
     description: 'JSON array of { "name": string, "inputCostPerMillion": number } pricing profiles'
     required: false

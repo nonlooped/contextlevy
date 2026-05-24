@@ -1,4 +1,5 @@
 import type { PricingProfile } from './types';
+import { parsePricingProfilesValue } from './config';
 
 export const DEFAULT_PRICING_PROFILES: PricingProfile[] = [
   { name: 'GPT-5.5', inputCostPerMillion: 2.9 },
@@ -32,33 +33,7 @@ export function parsePricingProfiles(input: string): PricingProfile[] {
     throw new Error('pricing-profiles must be valid JSON.');
   }
 
-  if (!Array.isArray(parsed)) {
-    throw new Error('pricing-profiles must be a JSON array.');
-  }
-
-  if (parsed.length === 0) {
-    return [];
-  }
-
-  return parsed.map((entry, index) => {
-    if (typeof entry !== 'object' || entry === null) {
-      throw new Error(`pricing-profiles[${index}] must be an object.`);
-    }
-
-    const record = entry as Record<string, unknown>;
-    const inputCostPerMillion = record.inputCostPerMillion;
-
-    if (typeof inputCostPerMillion !== 'number' || inputCostPerMillion < 0) {
-      throw new Error(
-        `pricing-profiles[${index}].inputCostPerMillion must be a non-negative number.`,
-      );
-    }
-
-    return {
-      name: readProfileName(record, index),
-      inputCostPerMillion,
-    };
-  });
+  return parsePricingProfilesValue(parsed);
 }
 
 /** @deprecated Use parsePricingProfiles */

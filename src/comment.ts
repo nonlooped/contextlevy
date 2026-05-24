@@ -1,8 +1,15 @@
 import { getHighImpactFiles } from './analyze';
 import { estimateSessionCost } from './pricing';
-import type { CommentOptions, PricingProfile, PullRequestAnalysis } from './types';
+import type {
+  CommentOptions,
+  FileAnalysis,
+  PricingProfile,
+  PullRequestAnalysis,
+} from './types';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
+const COMPACT_MAX_FINDINGS = 3;
+const COMPACT_MAX_SUGGESTIONS = 2;
 
 const INDEXING_SUGGESTION =
   'Exclude generated/coverage artifacts from agent-specific indexing where supported.';
@@ -96,25 +103,125 @@ function formatFindingCell(filename: string, label: string): string {
   return `\`${filename}\`<br/>${label}`;
 }
 
+function formatShortPath(filename: string): string {
+  const parts = filename.split('/');
+  if (parts.length <= 2) {
+    return filename;
+  }
+  return parts.slice(-2).join('/');
+}
+
+function getFindings(
+  analysis: PullRequestAnalysis,
+  maxItems: number,
+): FileAnalysis[] {
+  const rows = getHighImpactFiles(analysis, maxItems);
+  if (rows.length > 0) {
+    return rows;
+  }
+  return analysis.files.slice(0, maxItems);
+}
+
+function formatCompactFindings(files: FileAnalysis[], maxItems: number): string | null {
+  const limit = Math.min(maxItems, COMPACT_MAX_FINDINGS);
+  const shown = files.slice(0, limit);
+  if (shown.length === 0) {
+    return null;
+  }
+
+  const parts = shown.map(
+    (file) => `+${formatCompactTokens(file.estimatedTokens)} \`${formatShortPath(file.filename)}\``,
+  );
+  const remaining = files.length - shown.length;
+  if (remaining > 0) {
+    parts.push(`+${remaining} more`);
+  }
+
+  return parts.join(' · ');
+}
+
+function formatCompactSuggestions(suggestions: string[]): string | null {
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return suggestions
+    .slice(0, COMPACT_MAX_SUGGESTIONS)
+    .map((suggestion) => suggestion.replace(/\.$/, ''))
+    .join('; ');
+}
+
+function formatInlineCostRange(
+  totalEstimatedTokens: number,
+  pricingProfiles: PricingProfile[],
+): string | null {
+  if (pricingProfiles.length === 0) {
+    return null;
+  }
+
+  const costs = pricingProfiles.map((profile) =>
+    estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion),
+  );
+  const min = Math.min(...costs);
+  const max = Math.max(...costs);
+
+  if (min === max) {
+    return `~${formatUsd(min)}/session est. input`;
+  }
+
+  return `~${formatUsd(min)}–${formatUsd(max)}/session est. input`;
+}
+
+function formatCompactComment(
+  analysis: PullRequestAnalysis,
+  options: CommentOptions,
+): string {
+  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+  const findings = getFindings(analysis, options.maxHighImpactItems);
+  const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
+
+  const footerParts: string[] = [];
+  if (options.showCostTable) {
+    const costLine = formatInlineCostRange(
+      analysis.totalEstimatedTokens,
+      options.pricingProfiles,
+    );
+    if (costLine) {
+      footerParts.push(costLine);
+    }
+  }
+
+  const suggestions = formatCompactSuggestions(buildSuggestions(analysis));
+  if (suggestions) {
+    footerParts.push(suggestions);
+  }
+
+  const sections = [
+    `🤖 **ContextLevy** · ${formatRiskLevel(riskLevel)} · **~${formatCompactTokens(analysis.totalEstimatedTokens)}** tokens`,
+  ];
+
+  if (findingsLine) {
+    sections.push(findingsLine);
+  }
+
+  if (footerParts.length > 0) {
+    sections.push(footerParts.join(' · '));
+  }
+
+  sections.push(COMMENT_MARKER);
+  return sections.join('\n');
+}
+
 function formatContextTable(
   analysis: PullRequestAnalysis,
   maxItems: number,
 ): string {
-  const rows = getHighImpactFiles(analysis, maxItems);
+  const rows = getFindings(analysis, maxItems);
   const tableHeader = ['| Added | Finding |', '|---:|---|'];
 
   if (rows.length === 0) {
-    const topFiles = analysis.files.slice(0, maxItems);
-    if (topFiles.length === 0) {
-      return 'No added context detected in this PR diff.';
-    }
-
-    const fallbackRows = topFiles.map(
-      (file) =>
-        `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`,
-    );
-
-    return [...tableHeader, ...fallbackRows].join('\n');
+    return 'No added context detected in this PR diff.';
   }
 
   const tableRows = rows.map(
@@ -145,6 +252,17 @@ export function formatPricingCostSection(
 }
 
 export function formatComment(
+  analysis: PullRequestAnalysis,
+  options: CommentOptions,
+): string {
+  if (options.commentFormat === 'compact') {
+    return formatCompactComment(analysis, options);
+  }
+
+  return formatDefaultComment(analysis, options);
+}
+
+function formatDefaultComment(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
 ): string {
