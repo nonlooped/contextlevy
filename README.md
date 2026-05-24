@@ -1,22 +1,99 @@
 # ContextLevy
 
-Bundle-size checks, but for **AI agent context cost**.
+<p align="center">
+  <strong>Bundle-size checks, but for AI agent context cost.</strong>
+</p>
 
-ContextLevy is a GitHub Action that comments on pull requests when the diff likely increases coding-agent context overhead — generated code, coverage output, lockfiles, build artifacts, logs, snapshots, agent instruction files, and other bulky paths.
+<p align="center">
+  ContextLevy comments on pull requests when a diff is likely to make coding agents slower, more expensive, or noisier to use.
+</p>
 
-It does **not** call an LLM and does **not** send your code anywhere. Estimates are heuristic context-risk deltas, not exact billing.
+<p align="center">
+  <a href="https://github.com/unloopedmido/contextlevy/actions/workflows/ci.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/unloopedmido/contextlevy/ci.yml?branch=main&label=CI">
+  </a>
+  <a href="https://github.com/unloopedmido/contextlevy/releases">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/unloopedmido/contextlevy?label=release">
+  </a>
+  <a href="https://github.com/unloopedmido/contextlevy/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/unloopedmido/contextlevy">
+  </a>
+  <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen">
+  <img alt="No LLM calls" src="https://img.shields.io/badge/LLM%20calls-none-blue">
+</p>
+
+---
+
+## Why ContextLevy?
+
+AI coding agents are powerful, but they are also extremely sensitive to noisy repository context.
+
+A single pull request can accidentally add:
+
+- generated clients
+- coverage reports
+- build output
+- lockfile churn
+- snapshots
+- huge logs
+- vendored files
+- agent instruction dumps
+- compiled bundles
+
+That may not break your app, but it can absolutely bloat every future AI-assisted coding session.
+
+**ContextLevy catches that before it becomes repo debt.**
+
+It scans pull request diffs, estimates added context weight, classifies risky files, and leaves a focused PR comment explaining what changed and what to clean up.
+
+![ContextLevy PR comment example](.github/assets/PR-Example.png)
+
+## What it catches
+
+| Risk            | Examples                                            | Why it matters                                         |
+| --------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| Generated code  | `generated/client.ts`, `schema.graphql`, SDK output | Often huge, repetitive, and better regenerated locally |
+| Coverage output | `coverage/lcov.info`, `htmlcov/`                    | High token cost with almost zero agent value           |
+| Build artifacts | `dist/`, `build/`, `.next/`, compiled bundles       | Frequently duplicated from source                      |
+| Logs and dumps  | `*.log`, traces, debug output                       | Noisy context that agents over-read                    |
+| Lockfile churn  | `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`  | Can dominate diffs in dependency PRs                   |
+| Snapshots       | `__snapshots__/`, large fixture files               | Useful sometimes, expensive always                     |
+| Agent files     | `.agents/`, `AGENTS.md`, instruction packs          | Can silently steer future agent behavior               |
+
+## Privacy model
+
+ContextLevy is intentionally boring:
+
+* **No LLM calls**
+* **No code upload**
+* **No external analysis service**
+* **No telemetry required**
+
+It only uses GitHub pull request metadata and diff patches available inside the workflow.
+
+Token and cost numbers are estimates, not billing-grade accounting.
 
 ## Quick start
 
-### Recommended: ContextLevy GitHub App
+### Recommended: use the ContextLevy GitHub App
 
-Install the ContextLevy GitHub App on your repository, then add:
+Using the GitHub App lets ContextLevy post PR comments with its own identity instead of relying only on the workflow token.
 
-- Repository variable: `CONTEXTLEVY_APP_CLIENT_ID` — set this to your **numeric GitHub App ID** (not the OAuth Client ID)
-- Repository secret: `CONTEXTLEVY_APP_PRIVATE_KEY` (PEM private key)
+Install the app on your repository, then add these repository settings:
+
+| Type                | Name                          | Value                      |
+| ------------------- | ----------------------------- | -------------------------- |
+| Repository variable | `CONTEXTLEVY_APP_ID`          | Your numeric GitHub App ID |
+| Repository secret   | `CONTEXTLEVY_APP_PRIVATE_KEY` | The app private key PEM    |
+
+> Do **not** use the OAuth Client ID or Client Secret here.
+> ContextLevy needs the numeric GitHub App ID and the generated private key.
+
+Create `.github/workflows/contextlevy.yml`:
 
 ```yaml
 name: ContextLevy
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -24,160 +101,379 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   contextlevy:
+    name: Check AI context cost
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: unloopedmido/contextlevy@v1
         env:
-          CONTEXTLEVY_APP_CLIENT_ID: ${{ vars.CONTEXTLEVY_APP_CLIENT_ID }}
+          CONTEXTLEVY_APP_ID: ${{ vars.CONTEXTLEVY_APP_ID }}
           CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         with:
           github-token: ${{ github.token }}
 ```
 
-When app credentials are present, ContextLevy mints an installation token for the current repository automatically.
-
 Grant the GitHub App these repository permissions:
 
-| Permission | Access |
-|------------|--------|
+| Permission    |       Access |
+| ------------- | -----------: |
+| Contents      |         Read |
 | Pull requests | Read & write |
-| Issues | Read & write |
-| Contents | Read |
+| Issues        | Read & write |
 
 After changing app permissions, accept the updated installation request on the repository.
 
-### Fallback: `GITHUB_TOKEN`
+### Fallback: use `GITHUB_TOKEN`
 
-If app credentials are not configured, ContextLevy falls back to `github-token` or the workflow `GITHUB_TOKEN`:
+For a simpler setup, you can skip the app credentials and use the workflow token:
 
 ```yaml
-- uses: unloopedmido/contextlevy@v1
-  with:
-    github-token: ${{ github.token }}
+name: ContextLevy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  contextlevy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: unloopedmido/contextlevy@v1
+        with:
+          github-token: ${{ github.token }}
 ```
 
-## Configuration file
+The GitHub App setup is still recommended for cleaner attribution and fewer token permission headaches.
 
-ContextLevy can read settings from a repo config file so you do not need to duplicate them in every workflow.
+## Configuration
 
-Supported paths (first match wins):
+ContextLevy reads all analysis and comment options from a config file in the repository. Add a config file once — workflow YAML stays minimal.
 
-- `.contextlevy.yml`
-- `.contextlevy.yaml`
-- `.contextlevy.json`
-- `contextlevy.yml`
-- `contextlevy.yaml`
-- `contextlevy.json`
+Supported config paths, in priority order:
+
+1. `.contextlevy.yml`
+2. `.contextlevy.yaml`
+3. `.contextlevy.json`
+4. `.github/contextlevy.yml`
+5. `.github/contextlevy.yaml`
+6. `.github/contextlevy.json`
+7. `contextlevy.yml`
+8. `contextlevy.yaml`
+9. `contextlevy.json`
+
+If no config file is found, ContextLevy uses built-in defaults.
 
 Example `.contextlevy.yml`:
 
 ```yaml
-token-threshold: 500
+token-threshold: 1000
 large-file-token-threshold: 5000
 max-high-impact-items: 5
 show-cost-table: true
 comment-format: default
+
 pricing-profiles:
   - name: GPT-5.5
-    inputCostPerMillion: 2.9
+    inputCostPerMillion: 5.0
   - name: Opus 4.7
-    inputCostPerMillion: 8.0
+    inputCostPerMillion: 5.0
+  - name: Team Gateway
+    inputCostPerMillion: 1.75
 ```
 
-Keys accept either kebab-case (`token-threshold`) or camelCase (`tokenThreshold`).
+Keys support both kebab-case and camelCase:
 
-Action inputs override the config file when set. Auth credentials stay in GitHub secrets/variables — do not put private keys in the config file.
+```yaml
+token-threshold: 1000
+```
 
-### Comment formats
+```yaml
+tokenThreshold: 1000
+```
 
-- `default` — full PR comment with findings table, optional cost table, and suggestions
-- `compact` — minimal inline comment (typically 3–4 lines): header, top findings, one-line cost/suggestions summary
+### Config options
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `token-threshold` | `1000` | Skip commenting below this estimated token total |
+| `large-file-token-threshold` | `5000` | Mark individual files as large context risks |
+| `max-high-impact-items` | `5` | Max files shown in the high-impact table |
+| `show-cost-table` | `true` | Include estimated model input costs |
+| `comment-format` | `default` | `default` or `compact` |
+| `pricing-profiles` | built-in defaults | Array of `{ name, inputCostPerMillion }` objects |
+
+## Action inputs
+
+The action accepts **authentication inputs only**. All behavior tuning belongs in the config file.
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `github-token` | `GITHUB_TOKEN` env | Fallback token for reading PR files and writing comments |
+| `app-client-id` | `CONTEXTLEVY_APP_ID` / `CONTEXTLEVY_APP_CLIENT_ID` env | Numeric GitHub App ID |
+| `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | GitHub App private key PEM |
+| `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional GitHub App installation ID override |
+
+Auth credentials should stay in GitHub secrets or variables. Do not put private keys in `.contextlevy.yml`.
+
+## Comment formats
+
+### Default
+
+Best for most repositories.
+
+Includes:
+
+* severity
+* estimated token delta
+* high-impact files
+* file classifications
+* optional cost table
+* cleanup suggestions
+
+```yaml
+comment-format: default
+```
+
+### Compact
+
+Best for busy repos that want a smaller PR footprint.
+
+Usually 3–4 lines:
 
 ```yaml
 comment-format: compact
 ```
 
-Use `config-path` to point at a custom file:
+Example:
 
-```yaml
-- uses: unloopedmido/contextlevy@v1
-  with:
-    config-path: .github/contextlevy.yml
+```txt
+🤖 ContextLevy · ⚠️ High · ~42.1k tokens
++31.4k coverage/lcov.info · +8.2k dist/index.js · +2.5k generated/client.ts
+~$0.02–$0.12/session est. input · Add coverage/ and dist/ to .gitignore
 ```
 
-## Inputs
+## Default pricing profiles
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `config-path` | auto-discover | Optional path to a ContextLevy config file |
-| `app-client-id` | `CONTEXTLEVY_APP_ID` / `CONTEXTLEVY_APP_CLIENT_ID` env | Numeric GitHub App ID |
-| `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | ContextLevy GitHub App private key PEM |
-| `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional installation ID override |
-| `github-token` | `GITHUB_TOKEN` env | Fallback token with `pull-requests: write` |
-| `token-threshold` | `1000` or config file | Skip commenting below this estimated token total |
-| `large-file-token-threshold` | `5000` or config file | Marks individual files as large context risks |
-| `max-high-impact-items` | `5` or config file | Max files listed in the context table |
-| `show-cost-table` | `true` or config file | Include the pricing cost table in the PR comment |
-| `comment-format` | `default` or config file | `default` (full comment) or `compact` (minimal inline comment) |
-| `pricing-profiles` | built-in defaults or config file | JSON array of pricing profiles for the cost table |
+When `pricing-profiles` is omitted, ContextLevy estimates worst-case input cost using:
 
-`model-pricing` is still accepted as a deprecated alias for `pricing-profiles`.
+| Profile        | Input cost / 1M tokens |
+| -------------- | ---------------------: |
+| GPT-5.5        |                `$5.00` |
+| Opus 4.7       |                `$5.00` |
+| Gemini 3.1 Pro |                `$2.00` |
+| Kimi K2.6      |                `$0.95` |
 
-### Default pricing profiles
-
-When `pricing-profiles` is omitted, ContextLevy estimates worst-case input cost for:
-
-| Pricing profile | Default input cost / 1M tokens |
-|-----------------|-------------------------------:|
-| GPT-5.5 | $2.90 |
-| Opus 4.7 | $8.00 |
-| Gemini 3.1 Pro | $1.50 |
-| Kimi K2.6 | $0.40 |
-
-Hide the cost table:
+Hide the cost table in your config file:
 
 ```yaml
-- uses: unloopedmido/contextlevy@v1
-  with:
-    show-cost-table: 'false'
+show-cost-table: false
 ```
 
 Override pricing profiles:
 
 ```yaml
-- uses: unloopedmido/contextlevy@v1
-  with:
-    pricing-profiles: |
-      [
-        { "name": "Local 70B", "inputCostPerMillion": 0.2 },
-        { "name": "Team Gateway", "inputCostPerMillion": 1.75 }
-      ]
+pricing-profiles:
+  - name: Local 70B
+    inputCostPerMillion: 0.2
+  - name: Team Gateway
+    inputCostPerMillion: 1.75
 ```
 
 ## How estimation works
 
-1. List files changed in the PR via the GitHub Pull Request Files API.
-2. Count **added** diff characters from each patch (`+` lines).
-3. Convert to estimated tokens with `ceil(chars / 4)`.
-4. If no patch is available, fall back to `additions × 10`.
-5. Classify paths with lightweight rules (generated, coverage, lockfile, etc.).
+ContextLevy uses a simple, transparent heuristic:
 
-Different models tokenize differently, and agents may not read every file. Treat the output as guidance.
+1. List files changed in the pull request.
+2. Read added diff lines from each patch.
+3. Count added characters.
+4. Estimate tokens with `ceil(chars / 4)`.
+5. If no patch is available, fall back to `additions × 10`.
+6. Classify risky paths with lightweight rules.
+
+This is intentionally approximate.
+
+Different models tokenize differently, agents may not read every changed file, and cached-token pricing varies by provider. Treat the output as a practical warning signal, not an invoice.
+
+## Severity levels
+
+| Severity   | Meaning                                          |
+| ---------- | ------------------------------------------------ |
+| `Low`      | Small context increase, usually safe             |
+| `Medium`   | Worth reviewing, especially in agent-heavy repos |
+| `High`     | Likely to affect AI coding sessions              |
+| `Critical` | Very large diff or obvious repo-noise artifact   |
+
+## Common recipes
+
+### Only comment on large context changes
+
+```yaml
+token-threshold: 5000
+```
+
+### Show fewer files in the PR comment
+
+```yaml
+max-high-impact-items: 3
+```
+
+### Use compact comments
+
+```yaml
+comment-format: compact
+```
+
+### Disable model cost estimates
+
+```yaml
+show-cost-table: false
+```
+
+### Use your own model pricing
+
+```yaml
+pricing-profiles:
+  - name: Internal Gateway
+    inputCostPerMillion: 1.25
+  - name: Local Inference
+    inputCostPerMillion: 0.05
+```
+
+## Good files to ignore
+
+ContextLevy is most useful when paired with normal repository hygiene.
+
+Common `.gitignore` additions:
+
+```gitignore
+coverage/
+htmlcov/
+dist/
+build/
+.next/
+.cache/
+*.log
+```
+
+Generated files may still belong in version control depending on your language, package manager, or deployment setup. ContextLevy does not block PRs by default; it gives reviewers a focused warning.
+
+## Troubleshooting
+
+### `Resource not accessible by integration`
+
+Your workflow token or GitHub App probably does not have enough permissions to create or update PR comments.
+
+Check:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+```
+
+If you use the GitHub App, confirm the installation has:
+
+* Contents: read
+* Pull requests: read & write
+* Issues: read & write
+
+### `CONTEXTLEVY_APP_PRIVATE_KEY` is invalid
+
+Make sure the secret contains the GitHub App private key PEM.
+
+It should look like this:
+
+```txt
+-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----
+```
+
+Do not use the app Client Secret.
+
+### The comment did not appear
+
+ContextLevy skips comments below `token-threshold`.
+
+Lower the threshold while testing:
+
+```yaml
+token-threshold: 0
+```
+
+### The estimate looks too high
+
+That usually means the PR added large generated files, coverage output, build artifacts, or lockfile churn.
+
+If the files are intentional, either ignore the warning or raise your thresholds.
 
 ## Development
 
+Install dependencies:
+
 ```bash
 npm install
+```
+
+Run tests:
+
+```bash
 npm test
+```
+
+Build the action:
+
+```bash
 npm run build
 ```
 
-Commit `dist/index.js` after building so consumers do not install runtime dependencies.
+Commit `dist/index.js` after building so consumers do not need to install runtime dependencies.
+
+## Releasing
+
+Tag stable releases with semantic versions:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Use major-version tags for GitHub Action consumers:
+
+```bash
+git tag -f v1 v1.0.0
+git push origin v1 --force
+```
+
+Consumers should usually pin:
+
+```yaml
+- uses: unloopedmido/contextlevy@v1
+```
+
+For maximum supply-chain safety, consumers can pin a full commit SHA.
+
+## Security
+
+ContextLevy is a pull request analysis tool. It does not execute changed code and does not send repository contents to an LLM or third-party API.
+
+Please report security issues privately instead of opening a public issue.
 
 ## License
 
