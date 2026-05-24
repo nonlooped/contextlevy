@@ -6,15 +6,20 @@ Run ContextLevy locally against your working tree or staged changes before openi
 
 ## Install
 
-From a clone of this repository:
+```bash
+npm install -g contextlevy
+contextlevy diff --base main
+```
+
+Or from a clone of this repository:
 
 ```bash
 npm install
-npm run build
+npm run build:cli
 npm link   # optional: install `contextlevy` globally
 ```
 
-Or invoke directly:
+Or invoke directly after building:
 
 ```bash
 node bin/contextlevy.js diff --base main
@@ -87,4 +92,4 @@ npx husky add .husky/pre-push "npm run contextlevy"
 
 - The CLI analyzes **tracked** changes visible to `git diff`. Stage new files with `git add` before running, or use `--staged`.
 - Token estimates match the Action's `simple` or `tokenizer` mode from your config.
-- The Action bundle (`dist/index.js`) is unchanged; the CLI is compiled separately with `tsc`.
+- The npm package ships only the CLI (`lib/`). The GitHub Action bundle (`dist/index.js`) is built separately and is not published to npm.

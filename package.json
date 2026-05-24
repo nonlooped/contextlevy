@@ -1,45 +1,72 @@
 {
   "name": "contextlevy",
   "version": "2.1.0",
-  "description": "GitHub Action: estimate AI agent context overhead from PR diffs",
+  "description": "Estimate AI agent context overhead from git diffs — local CLI and GitHub Action",
   "license": "MIT",
-  "private": true,
-  "main": "dist/index.js",
+  "author": "unloopedmido",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unloopedmido/contextlevy.git"
+  },
+  "homepage": "https://github.com/unloopedmido/contextlevy#readme",
+  "bugs": {
+    "url": "https://github.com/unloopedmido/contextlevy/issues"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "context",
+    "cursor",
+    "diff",
+    "github-actions",
+    "llm",
+    "tokens"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "lib/cli/index.js",
   "bin": {
     "contextlevy": "./bin/contextlevy.js"
   },
   "files": [
-    "action.yml",
     "bin",
-    "dist",
+    "lib",
+    "docs/CLI.md",
     "LICENSE",
-    "README.md",
-    "SECURITY.md"
+    "README.md"
   ],
   "scripts": {
-    "build": "ncc build src/index.ts -o dist --license licenses.txt && tsc -p tsconfig.cli.json",
+    "build": "npm run build:action && npm run build:cli",
     "build:action": "ncc build src/index.ts -o dist --license licenses.txt",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "prepack": "npm run build:cli",
+    "pack:check": "npm pack --dry-run",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "all": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
+    "js-tiktoken": "^1.0.21",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
     "@octokit/auth-app": "^7.1.5",
     "@octokit/rest": "^21.1.1",
-    "js-tiktoken": "^1.0.21",
-    "yaml": "^2.8.0"
-  },
-  "overrides": {
-    "undici": "^6.25.0"
-  },
-  "devDependencies": {
     "@types/node": "^25.9.1",
     "@vercel/ncc": "^0.38.4",
     "@vitest/coverage-v8": "^4.1.7",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "undici": "^6.25.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
