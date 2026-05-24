@@ -450,15 +450,15 @@ Commit `dist/index.js` after building so consumers do not need to install runtim
 Tag stable releases with semantic versions:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 Use major-version tags for GitHub Action consumers:
 
 ```bash
-git tag -f v1 v1.0.0
-git push origin v1 --force
+git tag -f v2 v2.0.0
+git push origin v2 --force
 ```
 
 Consumers should usually pin:
