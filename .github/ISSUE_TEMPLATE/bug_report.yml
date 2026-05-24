@@ -1,0 +1,70 @@
+name: Bug report
+description: Report incorrect behavior, workflow failures, or missing PR comments
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ContextLevy. Include enough detail to reproduce the issue.
+
+        For security issues, use [GitHub Security Advisories](https://github.com/unloopedmido/contextlevy/security/advisories/new) instead.
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow snippet
+      description: Paste the relevant `.github/workflows/` YAML (redact secrets).
+      placeholder: |
+        - uses: unloopedmido/contextlevy@v2
+          env:
+            CONTEXTLEVY_APP_ID: ${{ vars.CONTEXTLEVY_APP_ID }}
+            ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected ContextLevy to do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead — error message, missing comment, wrong severity, etc.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fork_pr
+    attributes:
+      label: Is this a pull request from a fork?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app_installed
+    attributes:
+      label: Is the ContextLevy GitHub App installed on the repository?
+      description: Install from https://github.com/apps/contextlevy
+      options:
+        - "Yes"
+        - "No — using GITHUB_TOKEN only"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Config file (`.contextlevy.yml`), action logs, or links to a public PR if available.
+      render: shell
