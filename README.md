@@ -34,6 +34,9 @@ jobs:
         env:
           CONTEXTLEVY_APP_CLIENT_ID: ${{ vars.CONTEXTLEVY_APP_CLIENT_ID }}
           CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          github-token: ${{ github.token }}
 ```
 
 When app credentials are present, ContextLevy mints an installation token for the current repository automatically.
