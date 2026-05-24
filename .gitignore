@@ -8,8 +8,12 @@ lib/
 # macOS
 .DS_Store
 
-# Agentic tools (local dev skills — public skills live in skills/)
-.agents/
+# Agentic tools — ignore local dev skills except the published contextlevy skill
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/contextlevy/
+!.agents/skills/contextlevy/**
 skills-lock.json
 docs/superpowers
 

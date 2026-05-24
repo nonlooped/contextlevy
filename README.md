@@ -204,7 +204,7 @@ Teach coding agents how to set up and use ContextLevy:
 npx skills add unloopedmido/contextlevy --skill contextlevy
 ```
 
-Skill source: [skills/contextlevy/SKILL.md](skills/contextlevy/SKILL.md)
+Skill source: [.agents/skills/contextlevy/SKILL.md](.agents/skills/contextlevy/SKILL.md)
 
 ## Configuration
 
