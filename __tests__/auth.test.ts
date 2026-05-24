@@ -8,6 +8,14 @@ import {
   resolveGithubToken,
 } from '../src/auth';
 
+vi.mock('@actions/core', () => ({
+  getInput: vi.fn(() => ''),
+  info: vi.fn(),
+  warning: vi.fn(),
+  setOutput: vi.fn(),
+  setFailed: vi.fn(),
+}));
+
 vi.mock('@octokit/rest', () => ({
   Octokit: vi.fn(),
 }));
@@ -21,6 +29,7 @@ vi.mock('@octokit/auth-app', () => ({
 }));
 
 const MockOctokit = vi.mocked(Octokit);
+const mockGetInput = vi.mocked(core.getInput);
 
 function mockOctokitSuccess(): void {
   MockOctokit.mockImplementation(function (this: {
@@ -55,13 +64,13 @@ describe('normalizePrivateKey', () => {
 
 describe('readAppCredentials', () => {
   beforeEach(() => {
-    vi.spyOn(core, 'getInput').mockReturnValue('');
+    mockGetInput.mockReturnValue('');
     delete process.env.CONTEXTLEVY_APP_CLIENT_ID;
     delete process.env.CONTEXTLEVY_APP_PRIVATE_KEY;
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('returns null when app credentials are absent', () => {
@@ -114,14 +123,14 @@ describe('createAppInstallationToken', () => {
 describe('resolveGithubToken', () => {
   beforeEach(() => {
     mockOctokitSuccess();
-    vi.spyOn(core, 'getInput').mockReturnValue('');
+    mockGetInput.mockReturnValue('');
     delete process.env.CONTEXTLEVY_APP_CLIENT_ID;
     delete process.env.CONTEXTLEVY_APP_PRIVATE_KEY;
     delete process.env.GITHUB_TOKEN;
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('prefers GitHub App credentials when configured', async () => {
@@ -135,7 +144,7 @@ describe('resolveGithubToken', () => {
   });
 
   it('falls back to github-token input', async () => {
-    vi.spyOn(core, 'getInput').mockImplementation((name: string) =>
+    mockGetInput.mockImplementation((name: string) =>
       name === 'github-token' ? 'input-token' : '',
     );
 
