@@ -46,6 +46,8 @@ That may not break your app, but it can absolutely bloat every future AI-assiste
 
 It scans pull request diffs, estimates added context weight, classifies risky files, and leaves a focused PR comment explaining what changed and what to clean up.
 
+See [docs/COMPARISON.md](docs/COMPARISON.md) for how ContextLevy compares to bundle tools, [ctx](https://github.com/forjd/ctx), and agent session tools.
+
 ![ContextLevy PR comment example](.github/assets/PR-Example.png)
 
 ## What it catches
@@ -75,19 +77,23 @@ Token and cost numbers are estimates, not billing-grade accounting.
 
 ## Quick start
 
-### Recommended: use the ContextLevy GitHub App
+### 1. Install the ContextLevy GitHub App
 
-Using the GitHub App lets ContextLevy post PR comments with its own identity instead of relying only on the workflow token.
+Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) on your repository.
 
-Install the app on your repository, then add these repository settings:
+Grant these repository permissions when prompted:
 
-| Type                | Name                          | Value                      |
-| ------------------- | ----------------------------- | -------------------------- |
-| Repository variable | `CONTEXTLEVY_APP_ID`          | Your numeric GitHub App ID |
-| Repository secret   | `CONTEXTLEVY_APP_PRIVATE_KEY` | The app private key PEM    |
+| Permission    |       Access |
+| ------------- | -----------: |
+| Contents      |         Read |
+| Pull requests | Read & write |
+| Issues        | Read & write |
 
-> Do **not** use the OAuth Client ID or Client Secret here.
-> ContextLevy needs the numeric GitHub App ID and the generated private key.
+The published app posts PR comments with its own identity. You do **not** need to add app credentials as repository secrets or variables.
+
+After changing app permissions, accept the updated installation request on the repository.
+
+### 2. Add the workflow
 
 Create `.github/workflows/contextlevy.yml`:
 
@@ -112,53 +118,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: unloopedmido/contextlevy@v2
-        env:
-          CONTEXTLEVY_APP_ID: ${{ vars.CONTEXTLEVY_APP_ID }}
-          CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
-          GITHUB_TOKEN: ${{ github.token }}
         with:
           github-token: ${{ github.token }}
 ```
 
-Grant the GitHub App these repository permissions:
+That is the full setup. ContextLevy reads your PR diff, estimates context weight, and comments when thresholds are exceeded.
 
-| Permission    |       Access |
-| ------------- | -----------: |
-| Contents      |         Read |
-| Pull requests | Read & write |
-| Issues        | Read & write |
-
-After changing app permissions, accept the updated installation request on the repository.
-
-### Fallback: use `GITHUB_TOKEN`
-
-For a simpler setup, you can skip the app credentials and use the workflow token:
-
-```yaml
-name: ContextLevy
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
-jobs:
-  contextlevy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: unloopedmido/contextlevy@v2
-        with:
-          github-token: ${{ github.token }}
-```
-
-The GitHub App setup is still recommended for cleaner attribution and fewer token permission headaches.
+> **Maintainers and contributors only:** To test with a self-hosted GitHub App in a private fork, see [CONTRIBUTING.md — Self-hosted GitHub App](CONTRIBUTING.md#self-hosted-github-app-maintainers-and-contributors-only) for `CONTEXTLEVY_APP_ID` and `CONTEXTLEVY_APP_PRIVATE_KEY` setup. End users should use the published app linked above.
 
 ## Configuration
 
@@ -189,6 +155,12 @@ max-high-impact-items: 5
 show-cost-table: true
 comment-format: default
 
+ignore-paths:
+  - vendor/**
+  - "**/*.map"
+
+fail-on-severity: high
+
 pricing-profiles:
   - name: GPT-5.5
     inputCostPerMillion: 5.0
@@ -217,7 +189,13 @@ tokenThreshold: 1000
 | `max-high-impact-items` | `5` | Max files shown in the high-impact table |
 | `show-cost-table` | `true` | Include estimated model input costs |
 | `comment-format` | `default` | `default` or `compact` |
+| `ignore-paths` | `[]` | Glob patterns excluded from analysis entirely |
+| `allow-paths` | `[]` | Glob patterns counted but not flagged as high-impact |
+| `fail-on-severity` | unset | Fail workflow at `low` / `medium` / `high` / `critical` or above |
+| `fail-above-tokens` | unset | Fail workflow when estimated tokens exceed this value |
 | `pricing-profiles` | built-in defaults | Array of `{ name, inputCostPerMillion }` objects |
+
+When `fail-on-severity` or `fail-above-tokens` is set, ContextLevy fails the workflow if thresholds are exceeded. **Fail mode runs even when the PR comment is skipped** — for example, when estimated tokens are below `token-threshold`. Analysis and fail checks always run; `token-threshold` only controls whether a comment is posted.
 
 ## Action inputs
 
@@ -413,7 +391,7 @@ Do not use the app Client Secret.
 
 ### The comment did not appear
 
-ContextLevy skips comments below `token-threshold`.
+ContextLevy skips comments below `token-threshold`. Fail mode (`fail-on-severity`, `fail-above-tokens`) still runs in that case — a skipped comment does not mean the check was skipped.
 
 Lower the threshold while testing:
 
