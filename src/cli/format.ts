@@ -1,6 +1,6 @@
-import { formatComment } from '../comment';
 import type { CommentOptions, PullRequestAnalysis } from '../types';
 import type { CliArgs } from './args';
+import { formatTerminalCompact, formatTerminalDefault } from './terminal';
 
 export function formatCliOutput(
   analysis: PullRequestAnalysis,
@@ -11,8 +11,9 @@ export function formatCliOutput(
     return JSON.stringify({ analysis, options }, null, 2);
   }
 
-  return formatComment(analysis, {
-    ...options,
-    commentFormat: args.format === 'compact' ? 'compact' : 'default',
-  });
+  if (args.format === 'compact') {
+    return formatTerminalCompact(analysis, options);
+  }
+
+  return formatTerminalDefault(analysis, options);
 }
