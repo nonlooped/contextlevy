@@ -6,6 +6,7 @@ import { COMMENT_MARKER, formatComment } from './comment';
 import { shouldFailRun } from './fail';
 import { loadConfigFile, loadConfigFromRepository, type ContextLevyConfig } from './config';
 import { resolveSettings } from './settings';
+import { writeJobSummary } from './summary';
 import type { PullRequestFileLike } from './types';
 
 async function listAllPullRequestFiles(
@@ -241,19 +242,25 @@ export async function run(): Promise<void> {
     largeFileTokenThreshold: settings.largeFileTokenThreshold,
     ignorePaths: settings.ignorePaths,
     allowPaths: settings.allowPaths,
+    estimationMode: settings.estimationMode,
+    customRules: settings.customRules,
   });
 
   core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
   core.setOutput('analyzed-file-count', String(analysis.files.length));
+  core.setOutput('estimation-mode', settings.estimationMode);
 
   const failDecision = shouldFailRun(
     analysis,
     {
       failOnSeverity: settings.failOnSeverity,
       failAboveTokens: settings.failAboveTokens,
+      severityThresholds: settings.severityThresholds,
     },
     settings.maxHighImpactItems,
   );
+
+  await writeJobSummary(analysis, settings, failDecision);
 
   if (failDecision.fail) {
     core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
@@ -271,6 +278,7 @@ export async function run(): Promise<void> {
     showCostTable: settings.showCostTable,
     pricingProfiles: settings.pricingProfiles,
     commentFormat: settings.commentFormat,
+    severityThresholds: settings.severityThresholds,
   });
 
   const botLogin = await getAuthenticatedLogin(octokit);

@@ -20,11 +20,13 @@ inputs:
 
 outputs:
   total-estimated-tokens:
-    description: Total estimated AI-context tokens added by this PR
+    description: Total estimated AI-context tokens added by this PR (integer as string)
   analyzed-file-count:
-    description: Number of changed files included in the estimate
+    description: Number of changed files included in the estimate (integer as string)
   token-source:
     description: 'Auth source used for the run: app, github-token, or GITHUB_TOKEN'
+  estimation-mode:
+    description: 'Token estimation mode used for this run: simple or tokenizer'
 
 runs:
   using: node20
