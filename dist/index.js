@@ -35390,6 +35390,7 @@ function wrappy (fn, cb) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.analyzePullRequestFiles = analyzePullRequestFiles;
 exports.getHighImpactFiles = getHighImpactFiles;
+const paths_1 = __nccwpck_require__(8431);
 const rules_1 = __nccwpck_require__(9244);
 const tokens_1 = __nccwpck_require__(7789);
 function uniqueSuggestions(values) {
@@ -35410,6 +35411,9 @@ function analyzePullRequestFiles(files, options) {
         if (file.status === 'removed') {
             continue;
         }
+        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.ignorePaths)) {
+            continue;
+        }
         const fromPatch = (0, tokens_1.estimateTokensFromPatch)(file.patch);
         const estimatedTokens = fromPatch > 0 || file.patch
             ? fromPatch
@@ -35418,6 +35422,9 @@ function analyzePullRequestFiles(files, options) {
             continue;
         }
         let rule = (0, rules_1.classifyPath)(file.filename);
+        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.allowPaths)) {
+            rule = rules_1.DEFAULT_MATCH;
+        }
         if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
             rule = (0, rules_1.largeFileMatch)();
         }
@@ -35621,22 +35628,33 @@ async function resolveGithubToken(owner, repo) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMMENT_MARKER = void 0;
 exports.formatCompactTokens = formatCompactTokens;
+exports.severityMeetsThreshold = severityMeetsThreshold;
 exports.getRiskLevel = getRiskLevel;
 exports.formatRiskLevel = formatRiskLevel;
 exports.buildSuggestions = buildSuggestions;
 exports.formatPricingCostSection = formatPricingCostSection;
 exports.formatComment = formatComment;
 const analyze_1 = __nccwpck_require__(2475);
+const indexing_1 = __nccwpck_require__(6275);
 const pricing_1 = __nccwpck_require__(4309);
 exports.COMMENT_MARKER = '<!-- contextlevy -->';
 const COMPACT_MAX_FINDINGS = 3;
 const COMPACT_MAX_SUGGESTIONS = 2;
-const INDEXING_SUGGESTION = 'Exclude generated/coverage artifacts from agent-specific indexing where supported.';
 function formatCompactTokens(value) {
     if (value >= 1000) {
         return `${(value / 1000).toFixed(1)}k`;
     }
     return value.toLocaleString('en-US');
+}
+const SEVERITY_RANK = {
+    Low: 0,
+    Medium: 1,
+    High: 2,
+    Critical: 3,
+};
+function severityMeetsThreshold(actual, threshold) {
+    const thresholdRank = threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
+    return SEVERITY_RANK[actual] >= thresholdRank;
 }
 function getRiskLevel(totalTokens, highImpactCount) {
     if (totalTokens >= 100_000 || highImpactCount >= 8) {
@@ -35696,7 +35714,7 @@ function formatInlineCodeInTable(value) {
     return `\`${escapeMarkdownTableCell(value)}\``;
 }
 function shouldSuggestIndexing(analysis) {
-    return analysis.files.some((file) => ['generated', 'coverage', 'build-output', 'log', 'minified'].includes(file.category));
+    return analysis.files.some((file) => indexing_1.INDEXABLE_CATEGORIES.has(file.category));
 }
 function normalizeSuggestion(suggestion) {
     if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
@@ -35723,8 +35741,12 @@ function buildSuggestions(analysis) {
             suggestions.push(normalized);
         }
     }
-    if (shouldSuggestIndexing(analysis) && !seen.has(INDEXING_SUGGESTION)) {
-        suggestions.push(INDEXING_SUGGESTION);
+    if (shouldSuggestIndexing(analysis)) {
+        const indexingSuggestion = (0, indexing_1.formatIndexingSuggestion)((0, indexing_1.getIndexablePaths)(analysis.files));
+        if (indexingSuggestion && !seen.has(indexingSuggestion)) {
+            seen.add(indexingSuggestion);
+            suggestions.push(indexingSuggestion);
+        }
     }
     return suggestions;
 }
@@ -35771,7 +35793,7 @@ function formatCompactFixSuggestion(suggestion) {
     if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
         return 'add logs to `.gitignore`';
     }
-    if (/exclude generated\/coverage artifacts/i.test(suggestion)) {
+    if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
         return 'exclude artifacts from agent indexing';
     }
     return suggestion.replace(/\.$/, '');
@@ -35897,6 +35919,7 @@ exports.loadConfigFromRepository = loadConfigFromRepository;
 const node_fs_1 = __nccwpck_require__(3024);
 const node_path_1 = __nccwpck_require__(6760);
 const yaml_1 = __nccwpck_require__(8815);
+const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'];
 exports.DEFAULT_CONFIG_PATHS = [
     '.contextlevy.yml',
     '.contextlevy.yaml',
@@ -35932,6 +35955,33 @@ function readOptionalInteger(value, fieldName) {
         throw new Error(`${fieldName} must be a non-negative integer.`);
     }
     return number;
+}
+function readStringArray(value, fieldName) {
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+    if (!Array.isArray(value)) {
+        throw new Error(`${fieldName} must be an array of strings.`);
+    }
+    return value.map((entry, index) => {
+        if (typeof entry !== 'string' || entry.trim().length === 0) {
+            throw new Error(`${fieldName}[${index}] must be a non-empty string.`);
+        }
+        return entry.trim();
+    });
+}
+function parseSeverityLevel(value, fieldName) {
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+    if (typeof value !== 'string') {
+        throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
+    }
+    const normalized = value.trim().toLowerCase();
+    if (!SEVERITY_LEVELS.includes(normalized)) {
+        throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
+    }
+    return normalized;
 }
 function readOptionalBoolean(value, fieldName) {
     if (value === undefined || value === null) {
@@ -36011,6 +36061,10 @@ function normalizeConfig(raw, sourcePath) {
         maxHighImpactItems: readOptionalInteger(readConfigValue(record, 'maxHighImpactItems', 'max-high-impact-items'), 'max-high-impact-items'),
         showCostTable: readOptionalBoolean(readConfigValue(record, 'showCostTable', 'show-cost-table'), 'show-cost-table'),
         commentFormat: parseCommentFormat(readConfigValue(record, 'commentFormat', 'comment-format'), 'comment-format'),
+        ignorePaths: readStringArray(readConfigValue(record, 'ignorePaths', 'ignore-paths'), 'ignore-paths'),
+        allowPaths: readStringArray(readConfigValue(record, 'allowPaths', 'allow-paths'), 'allow-paths'),
+        failOnSeverity: parseSeverityLevel(readConfigValue(record, 'failOnSeverity', 'fail-on-severity'), 'fail-on-severity'),
+        failAboveTokens: readOptionalInteger(readConfigValue(record, 'failAboveTokens', 'fail-above-tokens'), 'fail-above-tokens'),
     };
     if (pricingProfilesRaw !== undefined) {
         config.pricingProfiles = parsePricingProfilesValue(pricingProfilesRaw);
@@ -36071,6 +36125,40 @@ async function loadConfigFromRepository(readConfig, ref) {
 
 /***/ }),
 
+/***/ 6971:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.shouldFailRun = shouldFailRun;
+const analyze_1 = __nccwpck_require__(2475);
+const comment_1 = __nccwpck_require__(2246);
+function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
+    if (settings.failAboveTokens !== undefined) {
+        if (analysis.totalEstimatedTokens > settings.failAboveTokens) {
+            return {
+                fail: true,
+                reason: `Estimated context tokens (${analysis.totalEstimatedTokens}) exceed fail-above-tokens (${settings.failAboveTokens}).`,
+            };
+        }
+    }
+    if (settings.failOnSeverity !== undefined) {
+        const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, maxHighImpactItems);
+        const riskLevel = (0, comment_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length);
+        if ((0, comment_1.severityMeetsThreshold)(riskLevel, settings.failOnSeverity)) {
+            return {
+                fail: true,
+                reason: `Context risk level (${riskLevel}) meets or exceeds fail-on-severity (${settings.failOnSeverity}).`,
+            };
+        }
+    }
+    return { fail: false };
+}
+
+
+/***/ }),
+
 /***/ 9407:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -36117,6 +36205,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const auth_1 = __nccwpck_require__(9081);
 const analyze_1 = __nccwpck_require__(2475);
 const comment_1 = __nccwpck_require__(2246);
+const fail_1 = __nccwpck_require__(6971);
 const config_1 = __nccwpck_require__(2973);
 const settings_1 = __nccwpck_require__(8750);
 async function listAllPullRequestFiles(octokit, owner, repo, pullNumber) {
@@ -36275,9 +36364,18 @@ async function run() {
     const files = await listAllPullRequestFiles(octokit, owner, repo, pullNumber);
     const analysis = (0, analyze_1.analyzePullRequestFiles)(files, {
         largeFileTokenThreshold: settings.largeFileTokenThreshold,
+        ignorePaths: settings.ignorePaths,
+        allowPaths: settings.allowPaths,
     });
     core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
     core.setOutput('analyzed-file-count', String(analysis.files.length));
+    const failDecision = (0, fail_1.shouldFailRun)(analysis, {
+        failOnSeverity: settings.failOnSeverity,
+        failAboveTokens: settings.failAboveTokens,
+    }, settings.maxHighImpactItems);
+    if (failDecision.fail) {
+        core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
+    }
     if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
         core.info(`Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`);
         return;
@@ -36329,6 +36427,128 @@ if (require.main === require.cache[eval('__filename')]) {
 
 /***/ }),
 
+/***/ 6275:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.INDEXABLE_CATEGORIES = void 0;
+exports.getIndexablePaths = getIndexablePaths;
+exports.formatIndexingSuggestion = formatIndexingSuggestion;
+const rules_1 = __nccwpck_require__(9244);
+exports.INDEXABLE_CATEGORIES = new Set([
+    'generated',
+    'coverage',
+    'build-output',
+    'log',
+    'minified',
+    'vendor',
+    'source-map',
+    'dependency-dir',
+    'cache-dir',
+    'test-output',
+    'openapi',
+    'protobuf',
+]);
+function indexablePathForFile(filename, category) {
+    const parts = filename.split('/');
+    for (let end = parts.length; end >= 1; end -= 1) {
+        const prefixParts = parts.slice(0, end);
+        const last = prefixParts[prefixParts.length - 1] ?? filename;
+        if (last.includes('.') && end === parts.length) {
+            if ((0, rules_1.classifyPath)(filename).category === category) {
+                return filename;
+            }
+            continue;
+        }
+        const prefix = `${prefixParts.join('/')}/`;
+        if ((0, rules_1.classifyPath)(`${prefix}.`).category === category) {
+            return prefix;
+        }
+    }
+    const topLevel = parts[0] ?? filename;
+    return topLevel.includes('.') && !topLevel.endsWith('/') ? filename : `${topLevel}/`;
+}
+function getIndexablePaths(files, maxItems = 4) {
+    const seen = new Set();
+    const paths = [];
+    for (const file of files) {
+        if (!exports.INDEXABLE_CATEGORIES.has(file.category)) {
+            continue;
+        }
+        const candidate = indexablePathForFile(file.filename, file.category);
+        if (!seen.has(candidate)) {
+            seen.add(candidate);
+            paths.push(candidate);
+        }
+        if (paths.length >= maxItems) {
+            break;
+        }
+    }
+    return paths;
+}
+function formatIndexingSuggestion(paths) {
+    if (paths.length === 0) {
+        return null;
+    }
+    const examples = paths.map((path) => `- \`${path}\``).join('\n');
+    return [
+        'Consider excluding these paths from agent indexing (tool-agnostic):',
+        examples,
+        '',
+        'Many tools honor `.gitignore`; others support dedicated ignore files such as `.cursorignore`.',
+    ].join('\n');
+}
+
+
+/***/ }),
+
+/***/ 8431:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.matchesPathPattern = matchesPathPattern;
+exports.matchesAnyPathPattern = matchesAnyPathPattern;
+function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function globToRegExp(pattern) {
+    const normalized = pattern.replace(/\\/g, '/').replace(/\/+$/, '');
+    let regex = '^';
+    for (let index = 0; index < normalized.length; index += 1) {
+        const char = normalized[index];
+        const next = normalized[index + 1];
+        if (char === '*' && next === '*') {
+            regex += '.*';
+            index += 1;
+            if (normalized[index + 1] === '/')
+                index += 1;
+            continue;
+        }
+        if (char === '*') {
+            regex += '[^/]*';
+            continue;
+        }
+        regex += escapeRegex(char);
+    }
+    regex += '$';
+    return new RegExp(regex);
+}
+function matchesPathPattern(filename, pattern) {
+    const normalizedFile = filename.replace(/\\/g, '/');
+    const normalizedPattern = pattern.replace(/\\/g, '/');
+    return globToRegExp(normalizedPattern).test(normalizedFile);
+}
+function matchesAnyPathPattern(filename, patterns) {
+    return patterns.some((pattern) => matchesPathPattern(filename, pattern));
+}
+
+
+/***/ }),
+
 /***/ 4309:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -36372,6 +36592,7 @@ function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_MATCH = void 0;
 exports.classifyPath = classifyPath;
 exports.largeFileMatch = largeFileMatch;
 function basename(filename) {
@@ -36382,6 +36603,34 @@ function segmentIncludes(filename, segment) {
     return filename.split('/').includes(segment);
 }
 const RULES = [
+    {
+        test: (f) => /\.map$/i.test(f),
+        match: {
+            category: 'source-map',
+            label: 'Source maps are poor context for coding agents.',
+            suggestion: 'Keep source maps out of version control unless they are release artifacts.',
+        },
+    },
+    {
+        test: (f) => /(?:^|\/)openapi(?:\/|$)/i.test(f) ||
+            /(?:^|\/)swagger(?:\/|$)/i.test(f) ||
+            /(?:^|\/)api-docs(?:\/|$)/i.test(f) ||
+            /(?:^|\/)generated[-_]?(?:openapi|swagger|clients?)(?:\/|$)/i.test(f) ||
+            /(?:^|\/)swagger\.(?:json|ya?ml|yaml)$/i.test(f),
+        match: {
+            category: 'openapi',
+            label: 'OpenAPI/Swagger generated clients and dumps are often huge and repetitive.',
+            suggestion: 'Generate API clients locally instead of committing generated output.',
+        },
+    },
+    {
+        test: (f) => /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|7z|mp4|mp3|woff2?|ttf|eot|wasm)$/i.test(f),
+        match: {
+            category: 'binary-asset',
+            label: 'Binary assets add diff noise without helping text-based coding agents.',
+            suggestion: 'Store large binaries outside git or in release assets when possible.',
+        },
+    },
     {
         test: (f) => /(?:^|\/)generated(?:\/|$)/i.test(f) || /\.gen\.[jt]sx?$/.test(f),
         match: {
@@ -36425,6 +36674,58 @@ const RULES = [
         },
     },
     {
+        test: (f) => /(?:^|\/)(?:vendor|third_party|third-party)(?:\/|$)/.test(f),
+        match: {
+            category: 'vendor',
+            label: 'Vendored dependencies are bulky and rarely useful as agent context.',
+            suggestion: 'Prefer lockfiles and package managers over committing vendor trees when possible.',
+        },
+    },
+    {
+        test: (f) => /(?:^|\/)node_modules(?:\/|$)/.test(f) ||
+            /(?:^|\/)(?:\.venv|venv|\.tox|\.eggs)(?:\/|$)/.test(f),
+        match: {
+            category: 'dependency-dir',
+            label: 'Dependency directories should not be committed.',
+            suggestion: 'Add node_modules/, .venv/, or equivalent directories to `.gitignore`.',
+        },
+    },
+    {
+        test: (f) => /(?:^|\/)(?:\.turbo|\.parcel-cache|\.cache|\.pytest_cache|\.mypy_cache|\.terraform|\.next\/cache)(?:\/|$)/.test(f),
+        match: {
+            category: 'cache-dir',
+            label: 'Cache directories are ephemeral build state, not source context.',
+            suggestion: 'Add cache directories to `.gitignore`.',
+        },
+    },
+    {
+        test: (f) => /(?:^|\/)(?:playwright-report|test-results|htmlcov|\.nyc_output)(?:\/|$)/.test(f),
+        match: {
+            category: 'test-output',
+            label: 'Test output is noisy and should not be committed.',
+            suggestion: 'Add test output directories to `.gitignore`.',
+        },
+    },
+    {
+        test: (f) => /\.(?:pb|grpc)\.[a-z0-9]+$/i.test(f) ||
+            /(?:^|\/)[^/]*_pb2\.py$/i.test(f) ||
+            /(?:^|\/)proto\/gen(?:\/|$)/i.test(f),
+        match: {
+            category: 'protobuf',
+            label: 'Protobuf/gRPC generated files are repetitive and better regenerated locally.',
+            suggestion: 'Avoid committing generated protobuf output unless your workflow requires it.',
+        },
+    },
+    {
+        test: (f) => /(?:^|\/)fixtures?(?:\/|$)/i.test(f) &&
+            /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
+        match: {
+            category: 'fixture',
+            label: 'Large fixture files can dominate agent context.',
+            suggestion: 'Keep fixtures minimal or load them from external test data when possible.',
+        },
+    },
+    {
         test: (f) => /(?:^|\/)(?:package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|Gemfile\.lock)$/.test(f),
         match: {
             category: 'lockfile',
@@ -36453,7 +36754,7 @@ const RULES = [
         },
     },
 ];
-const DEFAULT_MATCH = {
+exports.DEFAULT_MATCH = {
     category: 'other',
     label: 'Added/changed file content may be read by coding agents.',
 };
@@ -36463,7 +36764,7 @@ function classifyPath(filename) {
             return rule.match;
         }
     }
-    return DEFAULT_MATCH;
+    return exports.DEFAULT_MATCH;
 }
 function largeFileMatch() {
     return {
@@ -36491,6 +36792,8 @@ const DEFAULTS = {
     showCostTable: true,
     pricingProfiles: pricing_1.DEFAULT_PRICING_PROFILES,
     commentFormat: 'default',
+    ignorePaths: [],
+    allowPaths: [],
 };
 function resolveSettings(config) {
     return {
@@ -36500,6 +36803,10 @@ function resolveSettings(config) {
         showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
         pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
         commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
+        ignorePaths: config?.ignorePaths ?? DEFAULTS.ignorePaths,
+        allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
+        failOnSeverity: config?.failOnSeverity,
+        failAboveTokens: config?.failAboveTokens,
     };
 }
 
