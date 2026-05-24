@@ -11,6 +11,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/apps/contextlevy/installations/new">
+    <img alt="Add ContextLevy to your repository" src="https://img.shields.io/badge/Add%20to%20repository-Install-24292e?style=for-the-badge&logo=github&logoColor=white">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/unloopedmido/contextlevy/actions/workflows/ci.yml">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/unloopedmido/contextlevy/ci.yml?branch=main&label=CI">
   </a>
