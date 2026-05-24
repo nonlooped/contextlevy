@@ -13,3 +13,5 @@ skills-lock.json
 
 # Test
 coverage/
+!examples/high-impact-pr/coverage/
+!examples/high-impact-pr/coverage/lcov.info
