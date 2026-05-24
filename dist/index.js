@@ -29994,11 +29994,31 @@ function getHighImpactFiles(analysis, maxItems) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMMENT_MARKER = void 0;
+exports.formatCompactTokens = formatCompactTokens;
+exports.getRiskLevel = getRiskLevel;
+exports.buildSuggestions = buildSuggestions;
 exports.formatComment = formatComment;
 const analyze_1 = __nccwpck_require__(2475);
+const pricing_1 = __nccwpck_require__(4309);
 exports.COMMENT_MARKER = '<!-- contextlevy -->';
-function formatTokenCount(value) {
+const INDEXING_SUGGESTION = 'Exclude generated/coverage artifacts from agent-specific indexing where supported.';
+function formatCompactTokens(value) {
+    if (value >= 1000) {
+        return `${(value / 1000).toFixed(1)}k`;
+    }
     return value.toLocaleString('en-US');
+}
+function getRiskLevel(totalTokens, highImpactCount) {
+    if (totalTokens >= 100_000 || highImpactCount >= 8) {
+        return 'Critical';
+    }
+    if (totalTokens >= 20_000 || highImpactCount >= 3) {
+        return 'High';
+    }
+    if (totalTokens >= 5_000 || highImpactCount >= 1) {
+        return 'Medium';
+    }
+    return 'Low';
 }
 function formatUsd(value) {
     return value.toLocaleString('en-US', {
@@ -30008,38 +30028,91 @@ function formatUsd(value) {
         maximumFractionDigits: 2,
     });
 }
-function formatHighImpactSection(analysis, maxItems) {
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
-    if (highImpact.length === 0) {
-        return 'No high-risk path patterns detected — mostly ordinary source changes.';
+function shouldSuggestIndexing(analysis) {
+    return analysis.files.some((file) => ['generated', 'coverage', 'build-output', 'log', 'minified'].includes(file.category));
+}
+function normalizeSuggestion(suggestion) {
+    if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
+        return 'Add `coverage/` to `.gitignore`.';
     }
-    const lines = highImpact.flatMap((file) => [
-        `  +${formatTokenCount(file.estimatedTokens).padStart(6)}  ${file.filename}`,
-        `           ${file.label}`,
+    if (/do not commit generated output unless required/i.test(suggestion)) {
+        return 'Avoid committing generated output unless required.';
+    }
+    if (/keep build output out of version control/i.test(suggestion)) {
+        return 'Keep build output out of version control.';
+    }
+    if (/add \*\.log and logs\/ to \.gitignore/i.test(suggestion)) {
+        return 'Add `*.log` and `logs/` to `.gitignore`.';
+    }
+    return suggestion;
+}
+function buildSuggestions(analysis) {
+    const seen = new Set();
+    const suggestions = [];
+    for (const suggestion of analysis.suggestions) {
+        const normalized = normalizeSuggestion(suggestion);
+        if (!seen.has(normalized)) {
+            seen.add(normalized);
+            suggestions.push(normalized);
+        }
+    }
+    if (shouldSuggestIndexing(analysis) && !seen.has(INDEXING_SUGGESTION)) {
+        suggestions.push(INDEXING_SUGGESTION);
+    }
+    return suggestions;
+}
+function formatContextTable(analysis, maxItems) {
+    const rows = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
+    if (rows.length === 0) {
+        const topFiles = analysis.files.slice(0, maxItems);
+        if (topFiles.length === 0) {
+            return 'No added context detected in this PR diff.';
+        }
+        const fallbackRows = topFiles.map((file) => `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`);
+        return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...fallbackRows].join('\n');
+    }
+    const tableRows = rows.map((file) => `| +${formatCompactTokens(file.estimatedTokens)} | \`${file.filename}\` | ${file.label} |`);
+    return ['| Added context | Path | Why it matters |', '|---:|---|---|', ...tableRows].join('\n');
+}
+function formatModelCostSection(totalEstimatedTokens, modelPricing) {
+    const rows = modelPricing.map((model) => {
+        const cost = (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, model.inputCostPerMillion);
+        return `| ${model.name} | ~${formatUsd(cost)}/session |`;
+    });
+    return [
+        '**Estimated worst-case input cost if read by an agent:**',
         '',
-    ]);
-    return lines.join('\n').trimEnd();
+        '| Model | Est. input cost |',
+        '|---|---:|',
+        ...rows,
+    ].join('\n');
 }
 function formatComment(analysis, options) {
-    const worstCaseCost = (analysis.totalEstimatedTokens / 1_000_000) * options.costPerMillionTokens;
-    const suggestionLines = analysis.suggestions.length > 0
-        ? analysis.suggestions.map((s) => `  - ${s}`).join('\n')
-        : '  - No specific suggestions — diff looks context-light.';
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
+    const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+    const suggestions = buildSuggestions(analysis);
+    const suggestionLines = suggestions.length > 0
+        ? suggestions.map((s) => `- ${s}`).join('\n')
+        : '- No specific suggestions — diff looks context-light.';
     return [
-        exports.COMMENT_MARKER,
         '🤖 **ContextLevy**',
         '',
-        `This PR adds **~${formatTokenCount(analysis.totalEstimatedTokens)} estimated AI-context tokens** (heuristic; not exact billing).`,
+        `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated AI-context tokens**.`,
         '',
-        '**High impact:**',
-        formatHighImpactSection(analysis, options.maxHighImpactItems),
+        `**Risk level:** ${riskLevel}`,
         '',
-        `**Estimated worst-case input cost if read by an agent:** ~${formatUsd(worstCaseCost)}/session`,
+        formatContextTable(analysis, options.maxHighImpactItems),
         '',
-        '_Different models tokenize differently, and agents may not read every changed file._',
+        formatModelCostSection(analysis.totalEstimatedTokens, options.modelPricing),
         '',
-        '**Suggestions:**',
+        '**Suggestions**',
         suggestionLines,
+        '',
+        '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._',
+        '',
+        '_ContextLevy runs locally in CI and does not send code to an external API._',
+        '',
+        exports.COMMENT_MARKER,
     ].join('\n');
 }
 
@@ -30090,6 +30163,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const analyze_1 = __nccwpck_require__(2475);
 const comment_1 = __nccwpck_require__(2246);
+const pricing_1 = __nccwpck_require__(4309);
 async function listAllPullRequestFiles(octokit, owner, repo, pullNumber) {
     const files = [];
     for await (const response of octokit.paginate.iterator(octokit.rest.pulls.listFiles, {
@@ -30146,7 +30220,7 @@ async function run() {
     const tokenThreshold = Number(core.getInput('token-threshold') || '1000');
     const largeFileTokenThreshold = Number(core.getInput('large-file-token-threshold') || '5000');
     const maxHighImpactItems = Number(core.getInput('max-high-impact-items') || '5');
-    const costPerMillionTokens = Number(core.getInput('cost-per-million-tokens') || '3');
+    const modelPricing = (0, pricing_1.parseModelPricing)(core.getInput('model-pricing') || '');
     const octokit = github.getOctokit(token);
     const context = github.context;
     if (!context.payload.pull_request) {
@@ -30165,8 +30239,8 @@ async function run() {
         return;
     }
     const body = (0, comment_1.formatComment)(analysis, {
-        costPerMillionTokens,
         maxHighImpactItems,
+        modelPricing,
     });
     await upsertComment(octokit, owner, repo, pullNumber, body);
 }
@@ -30179,6 +30253,62 @@ if (require.main === require.cache[eval('__filename')]) {
             core.setFailed(String(error));
         }
     });
+}
+
+
+/***/ }),
+
+/***/ 4309:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_MODEL_PRICING = void 0;
+exports.parseModelPricing = parseModelPricing;
+exports.estimateSessionCost = estimateSessionCost;
+exports.DEFAULT_MODEL_PRICING = [
+    { name: 'GPT-5.5', inputCostPerMillion: 2.9 },
+    { name: 'Opus 4.7', inputCostPerMillion: 8.0 },
+    { name: 'Gemini 3.1 Pro', inputCostPerMillion: 1.5 },
+    { name: 'Kimi K2.6', inputCostPerMillion: 0.4 },
+];
+function parseModelPricing(input) {
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return exports.DEFAULT_MODEL_PRICING;
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(trimmed);
+    }
+    catch {
+        throw new Error('model-pricing must be valid JSON.');
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error('model-pricing must be a non-empty JSON array.');
+    }
+    return parsed.map((entry, index) => {
+        if (typeof entry !== 'object' || entry === null) {
+            throw new Error(`model-pricing[${index}] must be an object.`);
+        }
+        const record = entry;
+        const name = record.name;
+        const inputCostPerMillion = record.inputCostPerMillion;
+        if (typeof name !== 'string' || name.trim().length === 0) {
+            throw new Error(`model-pricing[${index}].name must be a non-empty string.`);
+        }
+        if (typeof inputCostPerMillion !== 'number' || inputCostPerMillion < 0) {
+            throw new Error(`model-pricing[${index}].inputCostPerMillion must be a non-negative number.`);
+        }
+        return {
+            name: name.trim(),
+            inputCostPerMillion,
+        };
+    });
+}
+function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
+    return (estimatedTokens / 1_000_000) * inputCostPerMillion;
 }
 
 
@@ -30204,8 +30334,8 @@ const RULES = [
         test: (f) => /(?:^|\/)generated(?:\/|$)/i.test(f) || /\.gen\.[jt]sx?$/.test(f),
         match: {
             category: 'generated',
-            label: 'Generated code. Usually low-value context for coding agents.',
-            suggestion: 'Do not commit generated output unless required.',
+            label: 'Generated code is usually low-value context for coding agents.',
+            suggestion: 'Avoid committing generated output unless required.',
         },
     },
     {
