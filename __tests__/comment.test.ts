@@ -83,11 +83,10 @@ describe('formatComment', () => {
       '| **+5.8k** | `examples/high-impact-pr/prisma/generated/client.ts`<br/>Generated code is usually low-value context for coding agents. |',
     );
     expect(body).toContain('**Estimated worst-case input cost if read by an agent**');
-    expect(body).toContain(
-      '_Based on configured input-token pricing. Output tokens and caching are not included._',
-    );
-    expect(body).toContain('| Pricing profile | Est. input cost |');
-    expect(body).toContain('| GPT-5.5 | ~$0.19/session |');
+    expect(body).toContain('Estimates may vary ±50% depending on model tokenizer');
+    expect(body).toContain('| Pricing profile | Est. input cost (±50%) |');
+    expect(body).toContain('| GPT-5.5 |');
+    expect(body).toMatch(/\$0\.\d{2}–\$0\.\d{2}\/session \|/);
     expect(body).toContain('| Opus 4.7 |');
     expect(body).toContain('| Gemini 3.1 Pro |');
     expect(body).toContain('| Kimi K2.6 |');
@@ -103,7 +102,8 @@ describe('formatComment', () => {
       pricingProfiles: [{ name: 'Local 70B', inputCostPerMillion: 0.2 }],
     });
 
-    expect(body).toContain('| Local 70B | ~$0.01/session |');
+    expect(body).toContain('| Local 70B |');
+    expect(body).toMatch(/\$0\.0\d–\$0\.0\d\/session \|/);
     expect(body).not.toContain('GPT-5.5');
   });
 

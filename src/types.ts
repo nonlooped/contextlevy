@@ -54,6 +54,7 @@ export interface CommentOptions {
   showCostTable: boolean;
   pricingProfiles: PricingProfile[];
   commentFormat: CommentFormat;
+  severityThresholds?: SeverityThresholds;
 }
 
 export type CommentFormat = 'default' | 'compact';
@@ -61,4 +62,23 @@ export type CommentFormat = 'default' | 'compact';
 export interface PricingProfile {
   name: string;
   inputCostPerMillion: number;
+}
+
+export type EstimationMode = 'simple' | 'tokenizer';
+
+export interface CustomRule {
+  name?: string;
+  paths: string[];
+  category: ContextCategory;
+  label: string;
+  suggestion?: string;
+}
+
+export interface SeverityThresholds {
+  mediumTokens: number;
+  highTokens: number;
+  criticalTokens: number;
+  mediumHighImpactCount: number;
+  highHighImpactCount: number;
+  criticalHighImpactCount: number;
 }

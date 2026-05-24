@@ -3,10 +3,14 @@ import { classifyPath, DEFAULT_MATCH, largeFileMatch } from './rules';
 import { estimateTokensFromAdditions, estimateTokensFromPatch } from './tokens';
 import type { FileAnalysis, PullRequestAnalysis, PullRequestFileLike } from './types';
 
+import type { EstimationMode, CustomRule } from './types';
+
 export interface AnalyzeOptions {
   largeFileTokenThreshold: number;
   ignorePaths: string[];
   allowPaths: string[];
+  estimationMode: EstimationMode;
+  customRules: CustomRule[];
 }
 
 function uniqueSuggestions(values: Array<string | undefined>): string[] {
@@ -39,7 +43,7 @@ export function analyzePullRequestFiles(
       continue;
     }
 
-    const fromPatch = estimateTokensFromPatch(file.patch);
+    const fromPatch = estimateTokensFromPatch(file.patch, options.estimationMode);
     const estimatedTokens =
       fromPatch > 0 || file.patch
         ? fromPatch
@@ -49,7 +53,7 @@ export function analyzePullRequestFiles(
       continue;
     }
 
-    let rule = classifyPath(file.filename);
+    let rule = classifyPath(file.filename, options.customRules);
 
     if (matchesAnyPathPattern(file.filename, options.allowPaths)) {
       rule = DEFAULT_MATCH;

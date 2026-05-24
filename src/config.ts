@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import type { PricingProfile } from './types';
+import type { ContextCategory, CustomRule, EstimationMode, PricingProfile, SeverityThresholds } from './types';
 
 export type CommentFormat = 'default' | 'compact';
 
@@ -18,9 +18,36 @@ export interface ContextLevyConfig {
   allowPaths?: string[];
   failOnSeverity?: SeverityLevel;
   failAboveTokens?: number;
+  estimationMode?: EstimationMode;
+  customRules?: CustomRule[];
+  severityThresholds?: Partial<SeverityThresholds>;
 }
 
 const SEVERITY_LEVELS: SeverityLevel[] = ['low', 'medium', 'high', 'critical'];
+
+const CONTEXT_CATEGORIES: ContextCategory[] = [
+  'generated',
+  'coverage',
+  'lockfile',
+  'build-output',
+  'log',
+  'snapshot',
+  'agent-config',
+  'minified',
+  'vendor',
+  'source-map',
+  'protobuf',
+  'openapi',
+  'dependency-dir',
+  'cache-dir',
+  'test-output',
+  'fixture',
+  'binary-asset',
+  'large-file',
+  'other',
+];
+
+const ESTIMATION_MODES: EstimationMode[] = ['simple', 'tokenizer'];
 
 export const DEFAULT_CONFIG_PATHS = [
   '.contextlevy.yml',
@@ -179,6 +206,132 @@ export function parsePricingProfilesValue(value: unknown): PricingProfile[] {
   });
 }
 
+function parseContextCategory(value: unknown, fieldName: string): ContextCategory {
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a supported context category.`);
+  }
+
+  const normalized = value.trim().toLowerCase() as ContextCategory;
+  if (!CONTEXT_CATEGORIES.includes(normalized)) {
+    throw new Error(`${fieldName} must be a supported context category.`);
+  }
+
+  return normalized;
+}
+
+export function parseEstimationMode(value: unknown, fieldName: string): EstimationMode | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be "simple" or "tokenizer".`);
+  }
+
+  const normalized = value.trim().toLowerCase() as EstimationMode;
+  if (!ESTIMATION_MODES.includes(normalized)) {
+    throw new Error(`${fieldName} must be "simple" or "tokenizer".`);
+  }
+
+  return normalized;
+}
+
+export function parseCustomRulesValue(value: unknown): CustomRule[] {
+  if (!Array.isArray(value)) {
+    throw new Error('custom-rules must be an array.');
+  }
+
+  return value.map((entry, index) => {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new Error(`custom-rules[${index}] must be an object.`);
+    }
+
+    const record = entry as Record<string, unknown>;
+    const paths = readStringArray(record.paths, `custom-rules[${index}].paths`);
+    if (!paths || paths.length === 0) {
+      throw new Error(`custom-rules[${index}].paths must contain at least one glob pattern.`);
+    }
+
+    const label = record.label;
+    if (typeof label !== 'string' || label.trim().length === 0) {
+      throw new Error(`custom-rules[${index}].label must be a non-empty string.`);
+    }
+
+    const category = parseContextCategory(record.category, `custom-rules[${index}].category`);
+    const suggestion =
+      record.suggestion === undefined || record.suggestion === null
+        ? undefined
+        : typeof record.suggestion === 'string'
+          ? record.suggestion.trim() || undefined
+          : (() => {
+              throw new Error(`custom-rules[${index}].suggestion must be a string.`);
+            })();
+
+    const name =
+      record.name === undefined || record.name === null
+        ? undefined
+        : typeof record.name === 'string'
+          ? record.name.trim() || undefined
+          : (() => {
+              throw new Error(`custom-rules[${index}].name must be a string.`);
+            })();
+
+    return {
+      name,
+      paths,
+      category,
+      label: label.trim(),
+      suggestion,
+    };
+  });
+}
+
+export function parseSeverityThresholdsValue(value: unknown): Partial<SeverityThresholds> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('severity-thresholds must be an object.');
+  }
+
+  const record = value as Record<string, unknown>;
+  const thresholds: Partial<SeverityThresholds> = {};
+
+  const mediumTokens = readOptionalInteger(
+    readConfigValue(record, 'mediumTokens', 'medium-tokens') ?? record.medium,
+    'severity-thresholds.medium-tokens',
+  );
+  const highTokens = readOptionalInteger(
+    readConfigValue(record, 'highTokens', 'high-tokens') ?? record.high,
+    'severity-thresholds.high-tokens',
+  );
+  const criticalTokens = readOptionalInteger(
+    readConfigValue(record, 'criticalTokens', 'critical-tokens') ?? record.critical,
+    'severity-thresholds.critical-tokens',
+  );
+  const mediumHighImpactCount = readOptionalInteger(
+    readConfigValue(record, 'mediumHighImpactCount', 'medium-high-impact-count'),
+    'severity-thresholds.medium-high-impact-count',
+  );
+  const highHighImpactCount = readOptionalInteger(
+    readConfigValue(record, 'highHighImpactCount', 'high-high-impact-count'),
+    'severity-thresholds.high-high-impact-count',
+  );
+  const criticalHighImpactCount = readOptionalInteger(
+    readConfigValue(record, 'criticalHighImpactCount', 'critical-high-impact-count'),
+    'severity-thresholds.critical-high-impact-count',
+  );
+
+  if (mediumTokens !== undefined) thresholds.mediumTokens = mediumTokens;
+  if (highTokens !== undefined) thresholds.highTokens = highTokens;
+  if (criticalTokens !== undefined) thresholds.criticalTokens = criticalTokens;
+  if (mediumHighImpactCount !== undefined) {
+    thresholds.mediumHighImpactCount = mediumHighImpactCount;
+  }
+  if (highHighImpactCount !== undefined) thresholds.highHighImpactCount = highHighImpactCount;
+  if (criticalHighImpactCount !== undefined) {
+    thresholds.criticalHighImpactCount = criticalHighImpactCount;
+  }
+
+  return thresholds;
+}
+
 function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error(`${sourcePath} must contain a JSON or YAML object.`);
@@ -186,6 +339,8 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
 
   const record = raw as Record<string, unknown>;
   const pricingProfilesRaw = readConfigValue(record, 'pricingProfiles', 'pricing-profiles');
+  const customRulesRaw = readConfigValue(record, 'customRules', 'custom-rules');
+  const severityThresholdsRaw = readConfigValue(record, 'severityThresholds', 'severity-thresholds');
 
   const config: ContextLevyConfig = {
     tokenThreshold: readOptionalInteger(
@@ -224,10 +379,22 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
       readConfigValue(record, 'failAboveTokens', 'fail-above-tokens'),
       'fail-above-tokens',
     ),
+    estimationMode: parseEstimationMode(
+      readConfigValue(record, 'estimationMode', 'estimation-mode'),
+      'estimation-mode',
+    ),
   };
 
   if (pricingProfilesRaw !== undefined) {
     config.pricingProfiles = parsePricingProfilesValue(pricingProfilesRaw);
+  }
+
+  if (customRulesRaw !== undefined) {
+    config.customRules = parseCustomRulesValue(customRulesRaw);
+  }
+
+  if (severityThresholdsRaw !== undefined) {
+    config.severityThresholds = parseSeverityThresholdsValue(severityThresholdsRaw);
   }
 
   return config;

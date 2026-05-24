@@ -5,12 +5,8 @@ import {
   INDEXABLE_CATEGORIES,
 } from './indexing';
 import { estimateSessionCost } from './pricing';
-import type {
-  CommentOptions,
-  FileAnalysis,
-  PricingProfile,
-  PullRequestAnalysis,
-} from './types';
+import type { CommentFormat, CommentOptions, FileAnalysis, PricingProfile, PullRequestAnalysis, SeverityThresholds } from './types';
+import { DEFAULT_SEVERITY_THRESHOLDS } from './settings';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
 const COMPACT_MAX_FINDINGS = 3;
@@ -43,14 +39,24 @@ export function severityMeetsThreshold(
 export function getRiskLevel(
   totalTokens: number,
   highImpactCount: number,
+  thresholds: SeverityThresholds = DEFAULT_SEVERITY_THRESHOLDS,
 ): 'Low' | 'Medium' | 'High' | 'Critical' {
-  if (totalTokens >= 100_000 || highImpactCount >= 8) {
+  if (
+    totalTokens >= thresholds.criticalTokens ||
+    highImpactCount >= thresholds.criticalHighImpactCount
+  ) {
     return 'Critical';
   }
-  if (totalTokens >= 20_000 || highImpactCount >= 3) {
+  if (
+    totalTokens >= thresholds.highTokens ||
+    highImpactCount >= thresholds.highHighImpactCount
+  ) {
     return 'High';
   }
-  if (totalTokens >= 5_000 || highImpactCount >= 1) {
+  if (
+    totalTokens >= thresholds.mediumTokens ||
+    highImpactCount >= thresholds.mediumHighImpactCount
+  ) {
     return 'Medium';
   }
   return 'Low';
@@ -80,6 +86,21 @@ function blockquote(lines: string[]): string {
   return lines
     .map((line) => (line.length === 0 ? '>' : `> ${line}`))
     .join('\n');
+}
+
+function resolveSeverityThresholds(options: {
+  severityThresholds?: SeverityThresholds;
+}): SeverityThresholds {
+  return options.severityThresholds ?? DEFAULT_SEVERITY_THRESHOLDS;
+}
+
+function formatCostRange(cost: number): string {
+  const low = cost * 0.5;
+  const high = cost * 1.5;
+  if (Math.abs(low - high) < 0.005) {
+    return `~${formatUsd(cost)}`;
+  }
+  return `~${formatUsd(low)}–${formatUsd(high)}`;
 }
 
 function formatUsd(value: number): string {
@@ -251,8 +272,13 @@ function formatCompactComment(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
 ): string {
+  const severityThresholds = resolveSeverityThresholds(options);
   const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+  const riskLevel = getRiskLevel(
+    analysis.totalEstimatedTokens,
+    highImpact.length,
+    severityThresholds,
+  );
   const findings = getFindings(analysis, options.maxHighImpactItems);
   const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
   const costLine = options.showCostTable
@@ -313,14 +339,14 @@ export function formatPricingCostSection(
 ): string {
   const rows = pricingProfiles.map((profile) => {
     const cost = estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion);
-    return `| ${escapeMarkdownTableCell(profile.name)} | ~${formatUsd(cost)}/session |`;
+    return `| ${escapeMarkdownTableCell(profile.name)} | ${formatCostRange(cost)}/session |`;
   });
 
   return [
     '**Estimated worst-case input cost if read by an agent**',
-    '_Based on configured input-token pricing. Output tokens and caching are not included._',
+    '_Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included._',
     '',
-    '| Pricing profile | Est. input cost |',
+    '| Pricing profile | Est. input cost (±50%) |',
     '|---|---:|',
     ...rows,
   ].join('\n');
@@ -341,8 +367,13 @@ function formatDefaultComment(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
 ): string {
+  const severityThresholds = resolveSeverityThresholds(options);
   const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+  const riskLevel = getRiskLevel(
+    analysis.totalEstimatedTokens,
+    highImpact.length,
+    severityThresholds,
+  );
   const suggestions = buildSuggestions(analysis);
 
   const suggestionLines =

@@ -1,6 +1,12 @@
 import type { ContextLevyConfig, SeverityLevel } from './config';
 import { DEFAULT_PRICING_PROFILES } from './pricing';
-import type { CommentFormat, PricingProfile } from './types';
+import type {
+  CommentFormat,
+  CustomRule,
+  EstimationMode,
+  PricingProfile,
+  SeverityThresholds,
+} from './types';
 
 export interface ContextLevySettings {
   tokenThreshold: number;
@@ -13,7 +19,19 @@ export interface ContextLevySettings {
   allowPaths: string[];
   failOnSeverity?: SeverityLevel;
   failAboveTokens?: number;
+  estimationMode: EstimationMode;
+  customRules: CustomRule[];
+  severityThresholds: SeverityThresholds;
 }
+
+export const DEFAULT_SEVERITY_THRESHOLDS: SeverityThresholds = {
+  mediumTokens: 5_000,
+  highTokens: 20_000,
+  criticalTokens: 100_000,
+  mediumHighImpactCount: 1,
+  highHighImpactCount: 3,
+  criticalHighImpactCount: 8,
+};
 
 const DEFAULTS: ContextLevySettings = {
   tokenThreshold: 1000,
@@ -24,7 +42,26 @@ const DEFAULTS: ContextLevySettings = {
   commentFormat: 'default',
   ignorePaths: [],
   allowPaths: [],
+  estimationMode: 'simple',
+  customRules: [],
+  severityThresholds: DEFAULT_SEVERITY_THRESHOLDS,
 };
+
+export function resolveSeverityThresholds(
+  partial: Partial<SeverityThresholds> | undefined,
+): SeverityThresholds {
+  return {
+    mediumTokens: partial?.mediumTokens ?? DEFAULT_SEVERITY_THRESHOLDS.mediumTokens,
+    highTokens: partial?.highTokens ?? DEFAULT_SEVERITY_THRESHOLDS.highTokens,
+    criticalTokens: partial?.criticalTokens ?? DEFAULT_SEVERITY_THRESHOLDS.criticalTokens,
+    mediumHighImpactCount:
+      partial?.mediumHighImpactCount ?? DEFAULT_SEVERITY_THRESHOLDS.mediumHighImpactCount,
+    highHighImpactCount:
+      partial?.highHighImpactCount ?? DEFAULT_SEVERITY_THRESHOLDS.highHighImpactCount,
+    criticalHighImpactCount:
+      partial?.criticalHighImpactCount ?? DEFAULT_SEVERITY_THRESHOLDS.criticalHighImpactCount,
+  };
+}
 
 export function resolveSettings(config: ContextLevyConfig | null): ContextLevySettings {
   return {
@@ -38,5 +75,8 @@ export function resolveSettings(config: ContextLevyConfig | null): ContextLevySe
     allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
     failOnSeverity: config?.failOnSeverity,
     failAboveTokens: config?.failAboveTokens,
+    estimationMode: config?.estimationMode ?? DEFAULTS.estimationMode,
+    customRules: config?.customRules ?? DEFAULTS.customRules,
+    severityThresholds: resolveSeverityThresholds(config?.severityThresholds),
   };
 }

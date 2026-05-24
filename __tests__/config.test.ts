@@ -124,6 +124,41 @@ describe('loadConfigFile', () => {
 
     expect(() => loadConfigFile(dir)).toThrow(/ignore-paths/i);
   });
+
+  it('loads estimation mode, custom rules, and severity thresholds', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(
+      join(dir, '.contextlevy.yml'),
+      [
+        'estimation-mode: tokenizer',
+        'custom-rules:',
+        '  - paths:',
+        '      - supabase/types.ts',
+        '    category: generated',
+        '    label: Generated Supabase types',
+        'severity-thresholds:',
+        '  medium: 3000',
+        '  high: 12000',
+        '  critical: 60000',
+      ].join('\n'),
+    );
+
+    expect(loadConfigFile(dir)).toEqual({
+      estimationMode: 'tokenizer',
+      customRules: [
+        {
+          paths: ['supabase/types.ts'],
+          category: 'generated',
+          label: 'Generated Supabase types',
+        },
+      ],
+      severityThresholds: {
+        mediumTokens: 3000,
+        highTokens: 12000,
+        criticalTokens: 60000,
+      },
+    });
+  });
 });
 
 describe('resolveSettings', () => {
@@ -145,6 +180,13 @@ describe('resolveSettings', () => {
       allowPaths: [],
       failOnSeverity: undefined,
       failAboveTokens: undefined,
+      estimationMode: 'simple',
+      customRules: [],
+      severityThresholds: expect.objectContaining({
+        mediumTokens: 5000,
+        highTokens: 20000,
+        criticalTokens: 100000,
+      }),
     });
   });
 
