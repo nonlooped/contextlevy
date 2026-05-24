@@ -44,7 +44,10 @@ export interface CommentOptions {
   maxHighImpactItems: number;
   showCostTable: boolean;
   pricingProfiles: PricingProfile[];
+  commentFormat: CommentFormat;
 }
+
+export type CommentFormat = 'default' | 'compact';
 
 export interface PricingProfile {
   name: string;

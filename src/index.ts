@@ -3,7 +3,8 @@ import * as github from '@actions/github';
 import { resolveGithubToken } from './auth';
 import { analyzePullRequestFiles } from './analyze';
 import { COMMENT_MARKER, formatComment } from './comment';
-import { parseBooleanInput, parsePricingProfiles } from './pricing';
+import { loadConfigFile, resolveConfigPath } from './config';
+import { resolveSettings } from './settings';
 import type { PullRequestFileLike } from './types';
 
 async function listAllPullRequestFiles(
@@ -97,15 +98,24 @@ async function upsertComment(
 }
 
 export async function run(): Promise<void> {
-  const tokenThreshold = Number(core.getInput('token-threshold') || '1000');
-  const largeFileTokenThreshold = Number(
-    core.getInput('large-file-token-threshold') || '5000',
-  );
-  const maxHighImpactItems = Number(core.getInput('max-high-impact-items') || '5');
-  const showCostTable = parseBooleanInput(core.getInput('show-cost-table') || 'true', true);
-  const pricingProfilesInput =
-    core.getInput('pricing-profiles') || core.getInput('model-pricing') || '';
-  const pricingProfiles = parsePricingProfiles(pricingProfilesInput);
+  const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
+  const configPathInput = core.getInput('config-path');
+  const config = loadConfigFile(workspaceRoot, configPathInput);
+  const resolvedConfigPath = resolveConfigPath(workspaceRoot, configPathInput);
+
+  if (resolvedConfigPath) {
+    core.info(`Loaded ContextLevy config from ${resolvedConfigPath}.`);
+  }
+
+  const settings = resolveSettings(config, {
+    tokenThreshold: core.getInput('token-threshold'),
+    largeFileTokenThreshold: core.getInput('large-file-token-threshold'),
+    maxHighImpactItems: core.getInput('max-high-impact-items'),
+    showCostTable: core.getInput('show-cost-table'),
+    pricingProfiles: core.getInput('pricing-profiles'),
+    modelPricing: core.getInput('model-pricing'),
+    commentFormat: core.getInput('comment-format'),
+  });
 
   const context = github.context;
 
@@ -125,22 +135,25 @@ export async function run(): Promise<void> {
   core.info(`Analyzing PR #${pullNumber} in ${owner}/${repo}`);
 
   const files = await listAllPullRequestFiles(octokit, owner, repo, pullNumber);
-  const analysis = analyzePullRequestFiles(files, { largeFileTokenThreshold });
+  const analysis = analyzePullRequestFiles(files, {
+    largeFileTokenThreshold: settings.largeFileTokenThreshold,
+  });
 
   core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
   core.setOutput('analyzed-file-count', String(analysis.files.length));
 
-  if (analysis.totalEstimatedTokens < tokenThreshold) {
+  if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
     core.info(
-      `Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${tokenThreshold}) — no comment posted.`,
+      `Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`,
     );
     return;
   }
 
   const body = formatComment(analysis, {
-    maxHighImpactItems,
-    showCostTable,
-    pricingProfiles,
+    maxHighImpactItems: settings.maxHighImpactItems,
+    showCostTable: settings.showCostTable,
+    pricingProfiles: settings.pricingProfiles,
+    commentFormat: settings.commentFormat,
   });
 
   try {

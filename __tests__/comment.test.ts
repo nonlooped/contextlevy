@@ -8,6 +8,13 @@ import {
 import { DEFAULT_PRICING_PROFILES } from '../src/pricing';
 import type { PullRequestAnalysis } from '../src/types';
 
+const defaultCommentOptions = {
+  maxHighImpactItems: 5,
+  showCostTable: true,
+  pricingProfiles: DEFAULT_PRICING_PROFILES,
+  commentFormat: 'default' as const,
+};
+
 const analysis: PullRequestAnalysis = {
   totalEstimatedTokens: 37_891,
   suggestions: ['Add coverage/ to .gitignore.', 'Avoid committing generated output unless required.'],
@@ -59,11 +66,7 @@ describe('buildSuggestions', () => {
 
 describe('formatComment', () => {
   it('matches the redesigned comment layout', () => {
-    const body = formatComment(analysis, {
-      maxHighImpactItems: 5,
-      showCostTable: true,
-      pricingProfiles: DEFAULT_PRICING_PROFILES,
-    });
+    const body = formatComment(analysis, defaultCommentOptions);
 
     expect(body).toContain('🤖 **ContextLevy**');
     expect(body).toContain('**~37.9k estimated net-new AI-context tokens**');
@@ -92,8 +95,7 @@ describe('formatComment', () => {
 
   it('supports custom pricing profiles', () => {
     const body = formatComment(analysis, {
-      maxHighImpactItems: 5,
-      showCostTable: true,
+      ...defaultCommentOptions,
       pricingProfiles: [{ name: 'Local 70B', inputCostPerMillion: 0.2 }],
     });
 
@@ -103,9 +105,8 @@ describe('formatComment', () => {
 
   it('omits the cost table when disabled', () => {
     const body = formatComment(analysis, {
-      maxHighImpactItems: 5,
+      ...defaultCommentOptions,
       showCostTable: false,
-      pricingProfiles: DEFAULT_PRICING_PROFILES,
     });
 
     expect(body).not.toContain('Estimated worst-case input cost');
@@ -114,11 +115,32 @@ describe('formatComment', () => {
 
   it('omits the cost table when pricing profiles are empty', () => {
     const body = formatComment(analysis, {
-      maxHighImpactItems: 5,
-      showCostTable: true,
+      ...defaultCommentOptions,
       pricingProfiles: [],
     });
 
     expect(body).not.toContain('Estimated worst-case input cost');
+  });
+
+  it('renders a genuinely compact comment layout', () => {
+    const body = formatComment(analysis, {
+      ...defaultCommentOptions,
+      commentFormat: 'compact',
+    });
+
+    const lines = body.split('\n').filter((line) => line.trim().length > 0);
+
+    expect(lines).toHaveLength(4);
+    expect(body).toBe(
+      [
+        '🤖 **ContextLevy** · 🔴 High · **~37.9k** tokens',
+        '+32.0k `coverage/lcov.info` · +5.8k `generated/client.ts`',
+        '~$0.02–$0.30/session est. input · Add `coverage/` to `.gitignore`; Avoid committing generated output unless required',
+        COMMENT_MARKER,
+      ].join('\n'),
+    );
+    expect(body).not.toContain('| Added | Finding |');
+    expect(body).not.toContain('**Suggestions**');
+    expect(body).not.toContain('ContextLevy runs locally in CI');
   });
 });

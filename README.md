@@ -61,19 +61,70 @@ If app credentials are not configured, ContextLevy falls back to `github-token` 
     github-token: ${{ github.token }}
 ```
 
+## Configuration file
+
+ContextLevy can read settings from a repo config file so you do not need to duplicate them in every workflow.
+
+Supported paths (first match wins):
+
+- `.contextlevy.yml`
+- `.contextlevy.yaml`
+- `.contextlevy.json`
+- `contextlevy.yml`
+- `contextlevy.yaml`
+- `contextlevy.json`
+
+Example `.contextlevy.yml`:
+
+```yaml
+token-threshold: 500
+large-file-token-threshold: 5000
+max-high-impact-items: 5
+show-cost-table: true
+comment-format: default
+pricing-profiles:
+  - name: GPT-5.5
+    inputCostPerMillion: 2.9
+  - name: Opus 4.7
+    inputCostPerMillion: 8.0
+```
+
+Keys accept either kebab-case (`token-threshold`) or camelCase (`tokenThreshold`).
+
+Action inputs override the config file when set. Auth credentials stay in GitHub secrets/variables — do not put private keys in the config file.
+
+### Comment formats
+
+- `default` — full PR comment with findings table, optional cost table, and suggestions
+- `compact` — minimal inline comment (typically 3–4 lines): header, top findings, one-line cost/suggestions summary
+
+```yaml
+comment-format: compact
+```
+
+Use `config-path` to point at a custom file:
+
+```yaml
+- uses: unloopedmido/contextlevy@v1
+  with:
+    config-path: .github/contextlevy.yml
+```
+
 ## Inputs
 
 | Input | Default | Description |
 |-------|---------|-------------|
+| `config-path` | auto-discover | Optional path to a ContextLevy config file |
 | `app-client-id` | `CONTEXTLEVY_APP_ID` / `CONTEXTLEVY_APP_CLIENT_ID` env | Numeric GitHub App ID |
 | `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | ContextLevy GitHub App private key PEM |
 | `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional installation ID override |
 | `github-token` | `GITHUB_TOKEN` env | Fallback token with `pull-requests: write` |
-| `token-threshold` | `1000` | Skip commenting below this estimated token total |
-| `large-file-token-threshold` | `5000` | Marks individual files as large context risks |
-| `max-high-impact-items` | `5` | Max files listed in the context table |
-| `show-cost-table` | `true` | Include the pricing cost table in the PR comment |
-| `pricing-profiles` | built-in defaults | JSON array of pricing profiles for the cost table |
+| `token-threshold` | `1000` or config file | Skip commenting below this estimated token total |
+| `large-file-token-threshold` | `5000` or config file | Marks individual files as large context risks |
+| `max-high-impact-items` | `5` or config file | Max files listed in the context table |
+| `show-cost-table` | `true` or config file | Include the pricing cost table in the PR comment |
+| `comment-format` | `default` or config file | `default` (full comment) or `compact` (minimal inline comment) |
+| `pricing-profiles` | built-in defaults or config file | JSON array of pricing profiles for the cost table |
 
 `model-pricing` is still accepted as a deprecated alias for `pricing-profiles`.
 
