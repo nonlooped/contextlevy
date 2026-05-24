@@ -16,6 +16,36 @@ function segmentIncludes(filename: string, segment: string): boolean {
 
 const RULES: PathRule[] = [
   {
+    test: (f) => /\.map$/i.test(f),
+    match: {
+      category: 'source-map',
+      label: 'Source maps are poor context for coding agents.',
+      suggestion: 'Keep source maps out of version control unless they are release artifacts.',
+    },
+  },
+  {
+    test: (f) =>
+      /(?:^|\/)openapi(?:\/|$)/i.test(f) ||
+      /(?:^|\/)swagger(?:\/|$)/i.test(f) ||
+      /(?:^|\/)api-docs(?:\/|$)/i.test(f) ||
+      /(?:^|\/)generated[-_]?(?:openapi|swagger|clients?)(?:\/|$)/i.test(f) ||
+      /(?:^|\/)swagger\.(?:json|ya?ml|yaml)$/i.test(f),
+    match: {
+      category: 'openapi',
+      label: 'OpenAPI/Swagger generated clients and dumps are often huge and repetitive.',
+      suggestion: 'Generate API clients locally instead of committing generated output.',
+    },
+  },
+  {
+    test: (f) =>
+      /\.(?:png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|7z|mp4|mp3|woff2?|ttf|eot|wasm)$/i.test(f),
+    match: {
+      category: 'binary-asset',
+      label: 'Binary assets add diff noise without helping text-based coding agents.',
+      suggestion: 'Store large binaries outside git or in release assets when possible.',
+    },
+  },
+  {
     test: (f) => /(?:^|\/)generated(?:\/|$)/i.test(f) || /\.gen\.[jt]sx?$/.test(f),
     match: {
       category: 'generated',
@@ -60,6 +90,65 @@ const RULES: PathRule[] = [
     },
   },
   {
+    test: (f) => /(?:^|\/)(?:vendor|third_party|third-party)(?:\/|$)/.test(f),
+    match: {
+      category: 'vendor',
+      label: 'Vendored dependencies are bulky and rarely useful as agent context.',
+      suggestion: 'Prefer lockfiles and package managers over committing vendor trees when possible.',
+    },
+  },
+  {
+    test: (f) =>
+      /(?:^|\/)node_modules(?:\/|$)/.test(f) ||
+      /(?:^|\/)(?:\.venv|venv|\.tox|\.eggs)(?:\/|$)/.test(f),
+    match: {
+      category: 'dependency-dir',
+      label: 'Dependency directories should not be committed.',
+      suggestion: 'Add node_modules/, .venv/, or equivalent directories to `.gitignore`.',
+    },
+  },
+  {
+    test: (f) =>
+      /(?:^|\/)(?:\.turbo|\.parcel-cache|\.cache|\.pytest_cache|\.mypy_cache|\.terraform|\.next\/cache)(?:\/|$)/.test(
+        f,
+      ),
+    match: {
+      category: 'cache-dir',
+      label: 'Cache directories are ephemeral build state, not source context.',
+      suggestion: 'Add cache directories to `.gitignore`.',
+    },
+  },
+  {
+    test: (f) =>
+      /(?:^|\/)(?:playwright-report|test-results|htmlcov|\.nyc_output)(?:\/|$)/.test(f),
+    match: {
+      category: 'test-output',
+      label: 'Test output is noisy and should not be committed.',
+      suggestion: 'Add test output directories to `.gitignore`.',
+    },
+  },
+  {
+    test: (f) =>
+      /\.(?:pb|grpc)\.[a-z0-9]+$/i.test(f) ||
+      /(?:^|\/)[^/]*_pb2\.py$/i.test(f) ||
+      /(?:^|\/)proto\/gen(?:\/|$)/i.test(f),
+    match: {
+      category: 'protobuf',
+      label: 'Protobuf/gRPC generated files are repetitive and better regenerated locally.',
+      suggestion: 'Avoid committing generated protobuf output unless your workflow requires it.',
+    },
+  },
+  {
+    test: (f) =>
+      /(?:^|\/)fixtures?(?:\/|$)/i.test(f) &&
+      /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
+    match: {
+      category: 'fixture',
+      label: 'Large fixture files can dominate agent context.',
+      suggestion: 'Keep fixtures minimal or load them from external test data when possible.',
+    },
+  },
+  {
     test: (f) =>
       /(?:^|\/)(?:package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|Gemfile\.lock)$/.test(
         f,
@@ -93,7 +182,7 @@ const RULES: PathRule[] = [
   },
 ];
 
-const DEFAULT_MATCH: RuleMatch = {
+export const DEFAULT_MATCH: RuleMatch = {
   category: 'other',
   label: 'Added/changed file content may be read by coding agents.',
 };

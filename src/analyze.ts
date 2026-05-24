@@ -1,9 +1,12 @@
-import { classifyPath, largeFileMatch } from './rules';
+import { matchesAnyPathPattern } from './paths';
+import { classifyPath, DEFAULT_MATCH, largeFileMatch } from './rules';
 import { estimateTokensFromAdditions, estimateTokensFromPatch } from './tokens';
 import type { FileAnalysis, PullRequestAnalysis, PullRequestFileLike } from './types';
 
 export interface AnalyzeOptions {
   largeFileTokenThreshold: number;
+  ignorePaths: string[];
+  allowPaths: string[];
 }
 
 function uniqueSuggestions(values: Array<string | undefined>): string[] {
@@ -32,6 +35,10 @@ export function analyzePullRequestFiles(
       continue;
     }
 
+    if (matchesAnyPathPattern(file.filename, options.ignorePaths)) {
+      continue;
+    }
+
     const fromPatch = estimateTokensFromPatch(file.patch);
     const estimatedTokens =
       fromPatch > 0 || file.patch
@@ -43,6 +50,10 @@ export function analyzePullRequestFiles(
     }
 
     let rule = classifyPath(file.filename);
+
+    if (matchesAnyPathPattern(file.filename, options.allowPaths)) {
+      rule = DEFAULT_MATCH;
+    }
 
     if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
       rule = largeFileMatch();

@@ -22,7 +22,11 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, { largeFileTokenThreshold: 5000 });
+    const result = analyzePullRequestFiles(files, {
+      largeFileTokenThreshold: 5000,
+      ignorePaths: [],
+      allowPaths: [],
+    });
 
     expect(result.totalEstimatedTokens).toBeGreaterThan(0);
     expect(result.files).toHaveLength(2);
@@ -41,7 +45,11 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, { largeFileTokenThreshold: 5000 });
+    const result = analyzePullRequestFiles(files, {
+      largeFileTokenThreshold: 5000,
+      ignorePaths: [],
+      allowPaths: [],
+    });
     expect(result.files).toHaveLength(0);
     expect(result.totalEstimatedTokens).toBe(0);
   });
@@ -57,7 +65,11 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, { largeFileTokenThreshold: 5000 });
+    const result = analyzePullRequestFiles(files, {
+      largeFileTokenThreshold: 5000,
+      ignorePaths: [],
+      allowPaths: [],
+    });
     expect(result.files[0]?.estimatedTokens).toBe(500);
   });
 
@@ -74,7 +86,58 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, { largeFileTokenThreshold: 1000 });
+    const result = analyzePullRequestFiles(files, {
+      largeFileTokenThreshold: 1000,
+      ignorePaths: [],
+      allowPaths: [],
+    });
     expect(result.files[0]?.category).toBe('large-file');
+  });
+
+  it('skips files matching ignore-paths', () => {
+    const result = analyzePullRequestFiles(
+      [
+        {
+          filename: 'docs/generated/api.ts',
+          status: 'added',
+          additions: 5000,
+          deletions: 0,
+          changes: 5000,
+          patch: '+'.repeat(4000),
+        },
+      ],
+      {
+        largeFileTokenThreshold: 5000,
+        ignorePaths: ['docs/generated/**'],
+        allowPaths: [],
+      },
+    );
+
+    expect(result.files).toHaveLength(0);
+    expect(result.totalEstimatedTokens).toBe(0);
+  });
+
+  it('suppresses classification for allow-paths but keeps token count', () => {
+    const result = analyzePullRequestFiles(
+      [
+        {
+          filename: 'vendor/lib/foo.go',
+          status: 'added',
+          additions: 100,
+          deletions: 0,
+          changes: 100,
+          patch: '+package main\n',
+        },
+      ],
+      {
+        largeFileTokenThreshold: 5000,
+        ignorePaths: [],
+        allowPaths: ['vendor/**'],
+      },
+    );
+
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0]?.category).toBe('other');
+    expect(result.files[0]?.suggestion).toBeUndefined();
   });
 });
