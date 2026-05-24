@@ -7,6 +7,15 @@ export type ContextCategory =
   | 'snapshot'
   | 'agent-config'
   | 'minified'
+  | 'vendor'
+  | 'source-map'
+  | 'protobuf'
+  | 'openapi'
+  | 'dependency-dir'
+  | 'cache-dir'
+  | 'test-output'
+  | 'fixture'
+  | 'binary-asset'
   | 'large-file'
   | 'other';
 
