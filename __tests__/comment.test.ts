@@ -128,17 +128,20 @@ describe('formatComment', () => {
       commentFormat: 'compact',
     });
 
-    const lines = body.split('\n').filter((line) => line.trim().length > 0);
-
-    expect(lines).toHaveLength(4);
     expect(body).toBe(
       [
-        '🤖 **ContextLevy** · 🔴 High · **~37.9k** tokens',
-        '+32.0k `coverage/lcov.info` · +5.8k `generated/client.ts`',
-        '~$0.02–$0.30/session est. input · Add `coverage/` to `.gitignore`; Avoid committing generated output unless required',
         COMMENT_MARKER,
+        '> 🤖 **ContextLevy** · 🔴 **High** · **+37.9k estimated context tokens**',
+        '>',
+        '> `coverage/lcov.info` **+32.0k** · `generated/client.ts` **+5.8k**',
+        '>',
+        '> **Worst-case input cost:** ~$0.02–$0.30/session  ',
+        '> **Fix:** add `coverage/` to `.gitignore` · avoid generated output',
+        '>',
+        '> <sub>Estimated context risk only. Agents may not read every changed file.</sub>',
       ].join('\n'),
     );
+    expect(body.startsWith(COMMENT_MARKER)).toBe(true);
     expect(body).not.toContain('| Added | Finding |');
     expect(body).not.toContain('**Suggestions**');
     expect(body).not.toContain('ContextLevy runs locally in CI');
