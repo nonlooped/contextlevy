@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+import { resolveGithubToken } from './auth';
 import { analyzePullRequestFiles } from './analyze';
 import { COMMENT_MARKER, formatComment } from './comment';
 import { parseBooleanInput, parsePricingProfiles } from './pricing';
@@ -51,10 +52,7 @@ async function upsertComment(
     per_page: 100,
   });
 
-  const existing = comments.find(
-    (comment) =>
-      comment.user?.type === 'Bot' && comment.body?.includes(COMMENT_MARKER),
-  );
+  const existing = comments.find((comment) => comment.body?.includes(COMMENT_MARKER));
 
   if (existing) {
     await octokit.rest.issues.updateComment({
@@ -77,11 +75,6 @@ async function upsertComment(
 }
 
 export async function run(): Promise<void> {
-  const tokenInput = core.getInput('github-token');
-  const token = tokenInput || process.env.GITHUB_TOKEN;
-  if (!token) {
-    throw new Error('github-token input is required when GITHUB_TOKEN is not set.');
-  }
   const tokenThreshold = Number(core.getInput('token-threshold') || '1000');
   const largeFileTokenThreshold = Number(
     core.getInput('large-file-token-threshold') || '5000',
@@ -92,7 +85,6 @@ export async function run(): Promise<void> {
     core.getInput('pricing-profiles') || core.getInput('model-pricing') || '';
   const pricingProfiles = parsePricingProfiles(pricingProfilesInput);
 
-  const octokit = github.getOctokit(token);
   const context = github.context;
 
   if (!context.payload.pull_request) {
@@ -102,6 +94,11 @@ export async function run(): Promise<void> {
 
   const pullNumber = context.payload.pull_request.number;
   const { owner, repo } = context.repo;
+
+  const { token, source } = await resolveGithubToken(owner, repo);
+  core.setOutput('token-source', source);
+
+  const octokit = github.getOctokit(token);
 
   core.info(`Analyzing PR #${pullNumber} in ${owner}/${repo}`);
 

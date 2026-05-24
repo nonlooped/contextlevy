@@ -16,6 +16,8 @@ jobs:
 
       - name: Run ContextLevy
         uses: ./
+        env:
+          CONTEXTLEVY_APP_CLIENT_ID: ${{ vars.CONTEXTLEVY_APP_CLIENT_ID }}
+          CONTEXTLEVY_APP_PRIVATE_KEY: ${{ secrets.CONTEXTLEVY_APP_PRIVATE_KEY }}
         with:
-          github-token: ${{ github.token }}
           token-threshold: '500'
