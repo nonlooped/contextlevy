@@ -32,7 +32,7 @@ jobs:
 
 | Input | Default | Description |
 |-------|---------|-------------|
-| `github-token` | `${{ github.token }}` | Token with `pull-requests: write` |
+| `github-token` | `GITHUB_TOKEN` env | Token with `pull-requests: write` |
 | `token-threshold` | `1000` | Skip commenting below this estimated token total |
 | `large-file-token-threshold` | `5000` | Marks individual files as large context risks |
 | `max-high-impact-items` | `5` | Max files listed under High impact |

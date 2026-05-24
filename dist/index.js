@@ -30138,7 +30138,11 @@ async function upsertComment(octokit, owner, repo, issueNumber, body) {
     core.info('Created ContextLevy comment.');
 }
 async function run() {
-    const token = core.getInput('github-token', { required: true });
+    const tokenInput = core.getInput('github-token');
+    const token = tokenInput || process.env.GITHUB_TOKEN;
+    if (!token) {
+        throw new Error('github-token input is required when GITHUB_TOKEN is not set.');
+    }
     const tokenThreshold = Number(core.getInput('token-threshold') || '1000');
     const largeFileTokenThreshold = Number(core.getInput('large-file-token-threshold') || '5000');
     const maxHighImpactItems = Number(core.getInput('max-high-impact-items') || '5');
