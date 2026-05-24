@@ -1,4 +1,9 @@
 import { getHighImpactFiles } from './analyze';
+import {
+  formatIndexingSuggestion,
+  getIndexablePaths,
+  INDEXABLE_CATEGORIES,
+} from './indexing';
 import { estimateSessionCost } from './pricing';
 import type {
   CommentOptions,
@@ -11,15 +16,28 @@ export const COMMENT_MARKER = '<!-- contextlevy -->';
 const COMPACT_MAX_FINDINGS = 3;
 const COMPACT_MAX_SUGGESTIONS = 2;
 
-const INDEXING_SUGGESTION =
-  'Exclude generated/coverage artifacts from agent-specific indexing where supported.';
-
 export function formatCompactTokens(value: number): string {
   if (value >= 1000) {
     return `${(value / 1000).toFixed(1)}k`;
   }
 
   return value.toLocaleString('en-US');
+}
+
+const SEVERITY_RANK = {
+  Low: 0,
+  Medium: 1,
+  High: 2,
+  Critical: 3,
+} as const;
+
+export function severityMeetsThreshold(
+  actual: ReturnType<typeof getRiskLevel>,
+  threshold: 'low' | 'medium' | 'high' | 'critical',
+): boolean {
+  const thresholdRank =
+    threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
+  return SEVERITY_RANK[actual] >= thresholdRank;
 }
 
 export function getRiskLevel(
@@ -93,9 +111,7 @@ function formatInlineCodeInTable(value: string): string {
 }
 
 function shouldSuggestIndexing(analysis: PullRequestAnalysis): boolean {
-  return analysis.files.some((file) =>
-    ['generated', 'coverage', 'build-output', 'log', 'minified'].includes(file.category),
-  );
+  return analysis.files.some((file) => INDEXABLE_CATEGORIES.has(file.category));
 }
 
 function normalizeSuggestion(suggestion: string): string {
@@ -126,8 +142,12 @@ export function buildSuggestions(analysis: PullRequestAnalysis): string[] {
     }
   }
 
-  if (shouldSuggestIndexing(analysis) && !seen.has(INDEXING_SUGGESTION)) {
-    suggestions.push(INDEXING_SUGGESTION);
+  if (shouldSuggestIndexing(analysis)) {
+    const indexingSuggestion = formatIndexingSuggestion(getIndexablePaths(analysis.files));
+    if (indexingSuggestion && !seen.has(indexingSuggestion)) {
+      seen.add(indexingSuggestion);
+      suggestions.push(indexingSuggestion);
+    }
   }
 
   return suggestions;
@@ -188,7 +208,7 @@ function formatCompactFixSuggestion(suggestion: string): string {
   if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
     return 'add logs to `.gitignore`';
   }
-  if (/exclude generated\/coverage artifacts/i.test(suggestion)) {
+  if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
     return 'exclude artifacts from agent indexing';
   }
 
