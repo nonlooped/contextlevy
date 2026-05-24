@@ -164,6 +164,8 @@ The GitHub App setup is still recommended for cleaner attribution and fewer toke
 
 ContextLevy reads all analysis and comment options from a config file in the repository. Add a config file once — workflow YAML stays minimal.
 
+On pull requests, ContextLevy reads configuration from the base branch version of the repository. A PR cannot silence the check by changing `.contextlevy.yml` in the same diff.
+
 Supported config paths, in priority order:
 
 1. `.contextlevy.yml`
@@ -393,6 +395,8 @@ If you use the GitHub App, confirm the installation has:
 * Pull requests: read & write
 * Issues: read & write
 
+For pull requests from forks, GitHub may still provide a read-only workflow token. In that case ContextLevy logs a warning, keeps the action successful, and still exposes analysis outputs.
+
 ### `CONTEXTLEVY_APP_PRIVATE_KEY` is invalid
 
 Make sure the secret contains the GitHub App private key PEM.
@@ -473,7 +477,7 @@ For maximum supply-chain safety, consumers can pin a full commit SHA.
 
 ContextLevy is a pull request analysis tool. It does not execute changed code and does not send repository contents to an LLM or third-party API.
 
-Please report security issues privately instead of opening a public issue.
+Please report security issues privately through GitHub Security Advisories instead of opening a public issue.
 
 ## License
 
