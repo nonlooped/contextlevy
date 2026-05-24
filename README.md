@@ -609,15 +609,19 @@ npm run pack:check
 
 ## Releasing
 
-Releases are automated when you push a semver tag. The [release workflow](.github/workflows/release.yml) runs tests, verifies `dist/`, creates a GitHub Release, publishes the CLI to npm via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC), and updates the major tag.
+Releases are automated when a version bump lands on `main`. The [release workflow](.github/workflows/release.yml) detects a `package.json` version change, runs tests, verifies `dist/`, creates a GitHub Release, pushes the semver tag, publishes the CLI to npm via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC), and updates the major tag.
 
-**First npm release:** publish manually once (see below), then link the package to this repo as a trusted publisher on npmjs.com. Later tag pushes publish automatically — no `NPM_TOKEN` required.
+**Do not push semver tags manually.** Bump the version in `package.json`, `package-lock.json`, and `CHANGELOG.md`, push to `main`, and CI handles the tag, GitHub Release, and npm publish.
 
-Tag stable releases with semantic versions:
+On [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, configure **GitHub Actions** with repository `unloopedmido/contextlevy` and workflow filename `release.yml`. No `NPM_TOKEN` secret is required.
+
+If npm publish fails after a version bump, re-run the **Release** workflow from the Actions tab (`workflow_dispatch`) once the package is missing on npm — it will retry without another version bump.
+
+Example release sequence:
 
 ```bash
-git tag v2.2.0
-git push origin v2.2.0
+# After updating package.json, package-lock.json, and CHANGELOG.md
+git push origin main
 ```
 
 The workflow updates the major-version tag (`v2`) automatically.
@@ -632,7 +636,7 @@ npm run pack:check
 npm publish --access public
 ```
 
-Then on [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, add **GitHub Actions** with repository `unloopedmido/contextlevy` and workflow `release.yml`. Future tag pushes publish via OIDC — no token secret needed.
+Then add the trusted publisher on npmjs.com as described above. Later version bumps on `main` publish automatically via OIDC.
 
 Consumers should usually pin:
 
