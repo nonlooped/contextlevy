@@ -67,10 +67,14 @@ describe('formatComment', () => {
 
     expect(body).toContain('🤖 **ContextLevy**');
     expect(body).toContain('**~37.9k estimated net-new AI-context tokens**');
-    expect(body).toContain('**Risk level:** High');
-    expect(body).toContain('| Added context | Path | Why it matters |');
-    expect(body).toContain('| +32.0k | `examples/high-impact-pr/coverage/lcov.info` |');
-    expect(body).toContain('| +5.8k | `examples/high-impact-pr/prisma/generated/client.ts` |');
+    expect(body).toContain('**Risk level:** 🔴 High');
+    expect(body).toContain('| Added | Finding |');
+    expect(body).toContain(
+      '| **+32.0k** | `examples/high-impact-pr/coverage/lcov.info`<br/>Coverage output is usually noisy and should not be committed. |',
+    );
+    expect(body).toContain(
+      '| **+5.8k** | `examples/high-impact-pr/prisma/generated/client.ts`<br/>Generated code is usually low-value context for coding agents. |',
+    );
     expect(body).toContain('**Estimated worst-case input cost if read by an agent**');
     expect(body).toContain(
       '_Based on configured input-token pricing. Output tokens and caching are not included._',
