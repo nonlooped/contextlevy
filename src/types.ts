@@ -53,6 +53,3 @@ export interface PricingProfile {
   name: string;
   inputCostPerMillion: number;
 }
-
-/** @deprecated Use PricingProfile */
-export type ModelPricing = PricingProfile;
