@@ -1,4 +1,4 @@
-import type { ContextLevyConfig } from './config';
+import type { ContextLevyConfig, SeverityLevel } from './config';
 import { DEFAULT_PRICING_PROFILES } from './pricing';
 import type { CommentFormat, PricingProfile } from './types';
 
@@ -9,6 +9,10 @@ export interface ContextLevySettings {
   showCostTable: boolean;
   pricingProfiles: PricingProfile[];
   commentFormat: CommentFormat;
+  ignorePaths: string[];
+  allowPaths: string[];
+  failOnSeverity?: SeverityLevel;
+  failAboveTokens?: number;
 }
 
 const DEFAULTS: ContextLevySettings = {
@@ -18,6 +22,8 @@ const DEFAULTS: ContextLevySettings = {
   showCostTable: true,
   pricingProfiles: DEFAULT_PRICING_PROFILES,
   commentFormat: 'default',
+  ignorePaths: [],
+  allowPaths: [],
 };
 
 export function resolveSettings(config: ContextLevyConfig | null): ContextLevySettings {
@@ -28,5 +34,9 @@ export function resolveSettings(config: ContextLevyConfig | null): ContextLevySe
     showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
     pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
     commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
+    ignorePaths: config?.ignorePaths ?? DEFAULTS.ignorePaths,
+    allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
+    failOnSeverity: config?.failOnSeverity,
+    failAboveTokens: config?.failAboveTokens,
   };
 }
