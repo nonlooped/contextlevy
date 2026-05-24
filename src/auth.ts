@@ -59,7 +59,7 @@ export function readAppCredentials(): AppCredentials | null {
 
   if (!appId || !privateKeyRaw) {
     throw new Error(
-      'GitHub App auth requires both CONTEXTLEVY_APP_CLIENT_ID and CONTEXTLEVY_APP_PRIVATE_KEY.',
+      'GitHub App auth requires both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY.',
     );
   }
 
@@ -72,8 +72,8 @@ export function readAppCredentials(): AppCredentials | null {
 export function assertValidAppId(appId: string): void {
   if (/^Iv/i.test(appId)) {
     throw new Error(
-      'CONTEXTLEVY_APP_CLIENT_ID looks like a GitHub OAuth Client ID (Iv...). ' +
-        'Use the numeric GitHub App ID from your app settings instead, or set CONTEXTLEVY_APP_ID.',
+      'CONTEXTLEVY_APP_ID looks like a GitHub OAuth Client ID (Iv...). ' +
+        'Use the numeric GitHub App ID from your app settings instead.',
     );
   }
 }
