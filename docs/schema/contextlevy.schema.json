@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/unloopedmido/contextlevy/main/docs/schema/contextlevy.schema.json",
+  "title": "ContextLevy configuration",
+  "description": "Repository config for the ContextLevy GitHub Action.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "token-threshold": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Skip PR comments below this estimated token total."
+    },
+    "tokenThreshold": { "$ref": "#/$defs/nonNegativeInteger" },
+    "large-file-token-threshold": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 5000
+    },
+    "largeFileTokenThreshold": { "$ref": "#/$defs/nonNegativeInteger" },
+    "max-high-impact-items": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5
+    },
+    "maxHighImpactItems": { "$ref": "#/$defs/positiveInteger" },
+    "show-cost-table": { "type": "boolean", "default": true },
+    "showCostTable": { "type": "boolean" },
+    "comment-format": {
+      "type": "string",
+      "enum": ["default", "compact"],
+      "default": "default"
+    },
+    "commentFormat": {
+      "type": "string",
+      "enum": ["default", "compact"]
+    },
+    "estimation-mode": {
+      "type": "string",
+      "enum": ["simple", "tokenizer"],
+      "default": "simple",
+      "description": "Use chars/4 heuristic (simple) or cl100k_base BPE tokenizer (tokenizer)."
+    },
+    "estimationMode": {
+      "type": "string",
+      "enum": ["simple", "tokenizer"]
+    },
+    "ignore-paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "ignorePaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "allow-paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "allowPaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "fail-on-severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "failOnSeverity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "fail-above-tokens": { "$ref": "#/$defs/nonNegativeInteger" },
+    "failAboveTokens": { "$ref": "#/$defs/nonNegativeInteger" },
+    "pricing-profiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pricingProfile" }
+    },
+    "pricingProfiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pricingProfile" }
+    },
+    "custom-rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/customRule" }
+    },
+    "customRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/customRule" }
+    },
+    "severity-thresholds": { "$ref": "#/$defs/severityThresholds" },
+    "severityThresholds": { "$ref": "#/$defs/severityThresholds" }
+  },
+  "$defs": {
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pricingProfile": {
+      "type": "object",
+      "required": ["inputCostPerMillion"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string", "minLength": 1 },
+        "inputCostPerMillion": { "type": "number", "minimum": 0 },
+        "input-cost-per-million": { "type": "number", "minimum": 0 }
+      },
+      "anyOf": [{ "required": ["name"] }, { "required": ["profile"] }]
+    },
+    "customRule": {
+      "type": "object",
+      "required": ["paths", "category", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "generated",
+            "coverage",
+            "lockfile",
+            "build-output",
+            "log",
+            "snapshot",
+            "agent-config",
+            "minified",
+            "vendor",
+            "source-map",
+            "protobuf",
+            "openapi",
+            "dependency-dir",
+            "cache-dir",
+            "test-output",
+            "fixture",
+            "binary-asset",
+            "large-file",
+            "other"
+          ]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "suggestion": { "type": "string" }
+      }
+    },
+    "severityThresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "medium-tokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "mediumTokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "medium": { "$ref": "#/$defs/nonNegativeInteger" },
+        "high-tokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "highTokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "high": { "$ref": "#/$defs/nonNegativeInteger" },
+        "critical-tokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "criticalTokens": { "$ref": "#/$defs/nonNegativeInteger" },
+        "critical": { "$ref": "#/$defs/nonNegativeInteger" },
+        "medium-high-impact-count": { "$ref": "#/$defs/nonNegativeInteger" },
+        "mediumHighImpactCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "high-high-impact-count": { "$ref": "#/$defs/nonNegativeInteger" },
+        "highHighImpactCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "critical-high-impact-count": { "$ref": "#/$defs/nonNegativeInteger" },
+        "criticalHighImpactCount": { "$ref": "#/$defs/nonNegativeInteger" }
+      }
+    }
+  }
+}
