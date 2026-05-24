@@ -3,6 +3,7 @@ import * as github from '@actions/github';
 import { resolveGithubToken } from './auth';
 import { analyzePullRequestFiles } from './analyze';
 import { COMMENT_MARKER, formatComment } from './comment';
+import { shouldFailRun } from './fail';
 import { loadConfigFile, loadConfigFromRepository, type ContextLevyConfig } from './config';
 import { resolveSettings } from './settings';
 import type { PullRequestFileLike } from './types';
@@ -238,10 +239,25 @@ export async function run(): Promise<void> {
   const files = await listAllPullRequestFiles(octokit, owner, repo, pullNumber);
   const analysis = analyzePullRequestFiles(files, {
     largeFileTokenThreshold: settings.largeFileTokenThreshold,
+    ignorePaths: settings.ignorePaths,
+    allowPaths: settings.allowPaths,
   });
 
   core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
   core.setOutput('analyzed-file-count', String(analysis.files.length));
+
+  const failDecision = shouldFailRun(
+    analysis,
+    {
+      failOnSeverity: settings.failOnSeverity,
+      failAboveTokens: settings.failAboveTokens,
+    },
+    settings.maxHighImpactItems,
+  );
+
+  if (failDecision.fail) {
+    core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
+  }
 
   if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
     core.info(
