@@ -105,7 +105,7 @@ Token and cost numbers are estimates, not billing-grade accounting.
 
 ## Quick start
 
-ContextLevy is a **GitHub Action** — not an npm package. Choose one setup path:
+ContextLevy is available as a **GitHub Action** and an **npm CLI**. Choose one setup path:
 
 ### Recommended: GitHub App
 
@@ -179,15 +179,32 @@ steps:
 
 ## Local CLI
 
-Check context cost on your machine before opening a PR:
+Install from npm or build from source:
 
 ```bash
-npm install && npm run build
+npm install -g contextlevy
 contextlevy diff --base main
 contextlevy diff --base origin/main --format json --fail-on-config
 ```
 
+From a clone:
+
+```bash
+npm install && npm run build:cli
+contextlevy diff --base main
+```
+
 See [docs/CLI.md](docs/CLI.md) for flags, exit codes, and pre-push hook recipes.
+
+### Agent skill
+
+Teach coding agents how to set up and use ContextLevy:
+
+```bash
+npx skills add unloopedmido/contextlevy --skill contextlevy
+```
+
+Skill source: [skills/contextlevy/SKILL.md](skills/contextlevy/SKILL.md)
 
 ## Configuration
 
@@ -574,17 +591,27 @@ Run tests:
 npm test
 ```
 
-Build the action:
+Build the action bundle and CLI:
 
 ```bash
-npm run build
+npm run build          # both
+npm run build:action   # GitHub Action only → dist/index.js
+npm run build:cli      # local CLI only → lib/
 ```
 
-Commit `dist/index.js` after building so consumers do not need to install runtime dependencies.
+Commit `dist/index.js` after building the action so workflow consumers do not need to install runtime dependencies. The CLI (`lib/`) is built automatically on `npm publish` via `prepack`.
+
+Verify the npm tarball before publishing:
+
+```bash
+npm run pack:check
+```
 
 ## Releasing
 
-Releases are automated when you push a semver tag. The [release workflow](.github/workflows/release.yml) runs tests, verifies `dist/`, creates a GitHub Release, and updates the major tag.
+Releases are automated when you push a semver tag. The [release workflow](.github/workflows/release.yml) runs tests, verifies `dist/`, creates a GitHub Release, publishes the CLI to npm, and updates the major tag.
+
+Configure an [`NPM_TOKEN`](https://docs.npmjs.com/creating-and-viewing-access-tokens) repository secret before the first npm publish.
 
 Tag stable releases with semantic versions:
 
