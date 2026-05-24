@@ -1,0 +1,21 @@
+name: ContextLevy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  contextlevy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ContextLevy
+        uses: ./
+        with:
+          github-token: ${{ github.token }}
+          token-threshold: '500'
