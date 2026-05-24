@@ -17,6 +17,7 @@ describe('classifyPath', () => {
   });
 
   it('flags agent instruction files', () => {
+    expect(classifyPath('.agents/skills/foo/SKILL.md').category).toBe('agent-config');
     expect(classifyPath('.cursor/rules/react.mdc').category).toBe('agent-config');
     expect(classifyPath('AGENTS.md').category).toBe('agent-config');
   });

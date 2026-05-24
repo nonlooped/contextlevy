@@ -72,6 +72,7 @@ const RULES: PathRule[] = [
   },
   {
     test: (f) =>
+      /(?:^|\/)\.agents(?:\/|$)/.test(f) ||
       basename(f) === 'AGENTS.md' ||
       basename(f) === '.cursorrules' ||
       /^\.cursor\/rules\//.test(f) ||
