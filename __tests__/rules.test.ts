@@ -66,7 +66,17 @@ describe('classifyPath', () => {
     expect(classifyPath('src/components/Button.tsx').category).toBe('other');
   });
 
-  it('flags large additions via caller-provided threshold separately in analyze', () => {
-    expect(classifyPath('src/big.ts').category).toBe('other');
+  it('applies custom rules before built-in rules', () => {
+    const match = classifyPath('supabase/types.ts', [
+      {
+        paths: ['supabase/types.ts'],
+        category: 'generated',
+        label: 'Generated Supabase types are usually low-value agent context.',
+        suggestion: 'Regenerate locally.',
+      },
+    ]);
+
+    expect(match.category).toBe('generated');
+    expect(match.label).toMatch(/Supabase/i);
   });
 });

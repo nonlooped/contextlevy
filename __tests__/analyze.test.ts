@@ -1,5 +1,14 @@
 import { analyzePullRequestFiles } from '../src/analyze';
+import type { AnalyzeOptions } from '../src/analyze';
 import type { PullRequestFileLike } from '../src/types';
+
+const defaultAnalyzeOptions: AnalyzeOptions = {
+  largeFileTokenThreshold: 5000,
+  ignorePaths: [],
+  allowPaths: [],
+  estimationMode: 'simple',
+  customRules: [],
+};
 
 describe('analyzePullRequestFiles', () => {
   it('aggregates estimated tokens across added and modified files', () => {
@@ -22,11 +31,7 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, {
-      largeFileTokenThreshold: 5000,
-      ignorePaths: [],
-      allowPaths: [],
-    });
+    const result = analyzePullRequestFiles(files, defaultAnalyzeOptions);
 
     expect(result.totalEstimatedTokens).toBeGreaterThan(0);
     expect(result.files).toHaveLength(2);
@@ -45,11 +50,7 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, {
-      largeFileTokenThreshold: 5000,
-      ignorePaths: [],
-      allowPaths: [],
-    });
+    const result = analyzePullRequestFiles(files, defaultAnalyzeOptions);
     expect(result.files).toHaveLength(0);
     expect(result.totalEstimatedTokens).toBe(0);
   });
@@ -65,11 +66,7 @@ describe('analyzePullRequestFiles', () => {
       },
     ];
 
-    const result = analyzePullRequestFiles(files, {
-      largeFileTokenThreshold: 5000,
-      ignorePaths: [],
-      allowPaths: [],
-    });
+    const result = analyzePullRequestFiles(files, defaultAnalyzeOptions);
     expect(result.files[0]?.estimatedTokens).toBe(500);
   });
 
@@ -87,9 +84,8 @@ describe('analyzePullRequestFiles', () => {
     ];
 
     const result = analyzePullRequestFiles(files, {
+      ...defaultAnalyzeOptions,
       largeFileTokenThreshold: 1000,
-      ignorePaths: [],
-      allowPaths: [],
     });
     expect(result.files[0]?.category).toBe('large-file');
   });
@@ -107,9 +103,8 @@ describe('analyzePullRequestFiles', () => {
         },
       ],
       {
-        largeFileTokenThreshold: 5000,
+        ...defaultAnalyzeOptions,
         ignorePaths: ['docs/generated/**'],
-        allowPaths: [],
       },
     );
 
@@ -130,8 +125,7 @@ describe('analyzePullRequestFiles', () => {
         },
       ],
       {
-        largeFileTokenThreshold: 5000,
-        ignorePaths: [],
+        ...defaultAnalyzeOptions,
         allowPaths: ['vendor/**'],
       },
     );

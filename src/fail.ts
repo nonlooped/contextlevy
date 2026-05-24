@@ -3,9 +3,12 @@ import { getRiskLevel, severityMeetsThreshold } from './comment';
 import type { SeverityLevel } from './config';
 import type { PullRequestAnalysis } from './types';
 
+import type { SeverityThresholds } from './types';
+
 export interface FailSettings {
   failOnSeverity?: SeverityLevel;
   failAboveTokens?: number;
+  severityThresholds?: SeverityThresholds;
 }
 
 export interface FailDecision {
@@ -29,7 +32,11 @@ export function shouldFailRun(
 
   if (settings.failOnSeverity !== undefined) {
     const highImpact = getHighImpactFiles(analysis, maxHighImpactItems);
-    const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length);
+    const riskLevel = getRiskLevel(
+      analysis.totalEstimatedTokens,
+      highImpact.length,
+      settings.severityThresholds,
+    );
     if (severityMeetsThreshold(riskLevel, settings.failOnSeverity)) {
       return {
         fail: true,

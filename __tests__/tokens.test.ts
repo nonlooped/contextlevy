@@ -35,3 +35,13 @@ describe('estimateTokensFromAdditions', () => {
     expect(estimateTokensFromAdditions(620)).toBe(6200);
   });
 });
+
+describe('estimateTokensFromText', () => {
+  it('uses tokenizer mode when requested', async () => {
+    const { estimateTokensFromText } = await import('../src/tokens');
+    const text = 'export const values = [1, 2, 3];';
+
+    expect(estimateTokensFromText(text, 'simple')).toBe(Math.ceil(text.length / 4));
+    expect(estimateTokensFromText(text, 'tokenizer')).toBeGreaterThan(0);
+  });
+});

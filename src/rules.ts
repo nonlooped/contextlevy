@@ -1,4 +1,5 @@
-import type { RuleMatch } from './types';
+import { matchesAnyPathPattern } from './paths';
+import type { CustomRule, RuleMatch } from './types';
 
 interface PathRule {
   test: (filename: string) => boolean;
@@ -187,7 +188,26 @@ export const DEFAULT_MATCH: RuleMatch = {
   label: 'Added/changed file content may be read by coding agents.',
 };
 
-export function classifyPath(filename: string): RuleMatch {
+function matchCustomRule(filename: string, customRules: CustomRule[]): RuleMatch | null {
+  for (const rule of customRules) {
+    if (matchesAnyPathPattern(filename, rule.paths)) {
+      return {
+        category: rule.category,
+        label: rule.label,
+        suggestion: rule.suggestion,
+      };
+    }
+  }
+
+  return null;
+}
+
+export function classifyPath(filename: string, customRules: CustomRule[] = []): RuleMatch {
+  const customMatch = matchCustomRule(filename, customRules);
+  if (customMatch) {
+    return customMatch;
+  }
+
   for (const rule of RULES) {
     if (rule.test(filename)) {
       return rule.match;
