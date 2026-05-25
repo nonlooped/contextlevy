@@ -46,7 +46,7 @@
     "lint": "biome lint --write .",
     "check:biome": "biome ci .",
     "check": "npm run check:biome && npm run typecheck && npm test && npm run check:fallow",
-    "check:fallow": "fallow dead-code",
+    "check:fallow": "npm run build:cli && fallow dead-code",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
