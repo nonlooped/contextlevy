@@ -21,7 +21,7 @@ export const DEFAULT_CONFIG_PATHS = [
   'contextlevy.json',
 ] as const;
 
-export function resolveConfigPath(workspaceRoot: string): string | null {
+function resolveConfigPath(workspaceRoot: string): string | null {
   for (const candidate of DEFAULT_CONFIG_PATHS) {
     const resolved = join(workspaceRoot, candidate);
     if (existsSync(resolved)) {

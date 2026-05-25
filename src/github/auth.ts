@@ -66,7 +66,7 @@ export function readAppCredentials(): AppCredentials | null {
   };
 }
 
-export function assertValidAppId(appId: string): void {
+function assertValidAppId(appId: string): void {
   if (/^Iv/i.test(appId)) {
     throw new Error(
       'CONTEXTLEVY_APP_ID looks like a GitHub OAuth Client ID (Iv...). ' +

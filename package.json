@@ -1,7 +1,7 @@
 {
   "name": "contextlevy",
   "version": "2.3.0",
-  "description": "Estimate AI agent context overhead from git diffs — local CLI and GitHub Action",
+  "description": "Repo hygiene linter for agent-heavy teams — local CLI and GitHub Action",
   "license": "MIT",
   "author": "unloopedmido",
   "repository": {
@@ -45,7 +45,8 @@
     "format": "biome format --write .",
     "lint": "biome lint --write .",
     "check:biome": "biome ci .",
-    "check": "npm run check:biome && npm run typecheck && npm test",
+    "check": "npm run check:biome && npm run typecheck && npm test && npm run check:fallow",
+    "check:fallow": "fallow dead-code",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -65,6 +66,7 @@
     "@types/node": "^25.9.1",
     "@vercel/ncc": "^0.38.4",
     "@vitest/coverage-v8": "^4.1.7",
+    "fallow": "^2.80.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },

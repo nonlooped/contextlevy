@@ -13,7 +13,7 @@ function getTokenizer(): Tiktoken {
   return tokenizer;
 }
 
-export function extractAddedTextFromPatch(patch: string): string {
+function extractAddedTextFromPatch(patch: string): string {
   const lines: string[] = [];
 
   for (const line of patch.split('\n')) {

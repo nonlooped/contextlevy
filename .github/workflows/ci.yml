@@ -23,6 +23,7 @@ jobs:
       - run: npm run check:biome
       - run: npm run typecheck
       - run: npm test -- --coverage
+      - run: npm run check:fallow
       - run: npm run build
       - run: npm run pack:check
 

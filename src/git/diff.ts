@@ -48,7 +48,7 @@ export function listChangedFiles(
   return files;
 }
 
-export function loadPatchForFile(
+function loadPatchForFile(
   baseRef: string,
   filename: string,
   staged = false,

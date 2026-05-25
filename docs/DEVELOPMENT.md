@@ -16,17 +16,25 @@ Run tests:
 npm test
 ```
 
-Run the full check suite (typecheck, tests, build):
+Run Biome, typecheck, tests, and Fallow dead-code checks:
+
+```bash
+npm run check
+```
+
+Run the full check suite plus build:
 
 ```bash
 npm run all
 ```
 
-Run Biome lint and format checks:
+Run dead-code analysis with [Fallow](https://docs.fallow.tools):
 
 ```bash
-npm run check
+npm run check:fallow
 ```
+
+Fallow config lives in [`.fallowrc.json`](../.fallowrc.json). It declares Action and CLI entry points, ignores dogfood fixtures under `examples/`, and treats GitHub Action build dependencies as used.
 
 ## Build
 
