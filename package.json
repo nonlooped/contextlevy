@@ -1,6 +1,6 @@
 {
   "name": "contextlevy",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Repo hygiene linter for agent-heavy teams — local CLI and GitHub Action",
   "license": "MIT",
   "author": "unloopedmido",
