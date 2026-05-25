@@ -8,7 +8,7 @@ metadata:
 
 # ContextLevy CLI
 
-ContextLevy estimates how much **net-new AI context** a diff adds — generated code, coverage, lockfiles, build output, agent config — and flags cleanup before it becomes repo debt.
+ContextLevy is a **repo hygiene linter for agent-heavy teams**. It flags diffs that will make coding-agent review noisy — generated output, coverage, build artifacts, lockfile churn, and agent instruction changes.
 
 **Privacy:** No LLM calls, no code upload, no external API. Runs on your machine.
 
@@ -37,20 +37,26 @@ Requires Node.js 20+ and `git` on PATH.
 ### Common commands
 
 ```bash
+# Start here (no config required)
+npx contextlevy check --base main
+
+# Scaffold config
+npx contextlevy init
+
 # Working tree vs main
-contextlevy diff --base main
+contextlevy check --base main
 
 # Staged changes only
-contextlevy diff --staged
+contextlevy check --staged
 
 # JSON for scripts / hooks
-contextlevy diff --base origin/main --format json
+contextlevy check --base origin/main --format json
 
 # Apply fail settings from contextlevy.config.yml
-contextlevy diff --base main --fail-on-config
+contextlevy check --base main --fail-on-config
 
-# One-off threshold
-contextlevy diff --base main --fail-above-tokens 10000
+# Strict category gate (dist/, coverage/, etc.)
+contextlevy check --base main --strict
 ```
 
 ### Exit codes
@@ -85,12 +91,9 @@ Add `contextlevy.config.yml` at the repo root (or see [CONFIG.md](../../../docs/
 Minimal example:
 
 ```yaml
-token-threshold: 1000
-fail-on-severity: high
-ignore-paths:
-  - vendor/**
-  - "**/*.map"
-estimation-mode: simple
+mode: advisory
+allow-paths:
+  - "packages/api/src/generated/**"
 ```
 
 Key options:

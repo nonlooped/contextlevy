@@ -1,6 +1,6 @@
 # How ContextLevy compares
 
-ContextLevy is **bundle-size checks, but for AI agent context cost**. It scans pull request diffs, estimates how much new context weight a change adds, classifies risky files, and leaves a focused PR comment before that noise becomes permanent repo debt.
+ContextLevy is a **repo hygiene linter for agent-heavy teams**. It scans pull request diffs, classifies risky files, and leaves a focused PR comment before review noise becomes permanent repo debt.
 
 Unlike tools that optimize a single coding session, ContextLevy guards what enters the repository through pull requests — with no LLM calls, no code upload, and no external analysis service.
 

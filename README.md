@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  <strong>Bundle-size checks, but for AI agent context cost.</strong>
+  <strong>Repo hygiene linter for agent-heavy teams.</strong>
 </p>
 
 <p align="center">
-  ContextLevy comments on pull requests when a diff is likely to make coding agents slower, more expensive, or noisier to use.
+  ContextLevy flags pull requests that will make coding-agent review noisy — generated output, coverage, build artifacts, lockfile churn, and agent instruction changes — before that noise becomes repo debt.
 </p>
 
 <p align="center">
@@ -89,17 +89,26 @@ It only uses GitHub pull request metadata and diff patches available inside the 
 
 ## Quick start
 
-ContextLevy is available as a **GitHub Action** and an **npm CLI**. Choose one setup path:
+```bash
+# Scan your diff locally (no config required)
+npx contextlevy check --base main
 
-### Recommended: GitHub App
+# Scaffold config + optional workflow
+npx contextlevy init
+npx contextlevy init --workflow --mode strict
+```
 
-Best comment attribution and permissions. No repository secrets required.
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for modes, allowlists, and pre-push hooks.
+
+### GitHub Action (optional)
+
+After `contextlevy init --workflow`, or add manually:
+
+Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) for best comment attribution (optional — `GITHUB_TOKEN` works for many repos).
 
 #### 1. Install the ContextLevy GitHub App
 
-Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) on your repository.
-
-Grant these repository permissions when prompted:
+Install the app on your repository. Grant:
 
 | Permission    |       Access |
 | ------------- | -----------: |
@@ -127,7 +136,7 @@ permissions:
 
 jobs:
   contextlevy:
-    name: Check AI context cost
+    name: Check repo context hygiene
     runs-on: ubuntu-latest
 
     steps:
@@ -150,10 +159,14 @@ Works for many internal PRs without installing the app. Fork PRs may be read-onl
 
 ## Local CLI
 
+`check` is the recommended command (`diff` is an alias):
+
 ```bash
 npm install -g contextlevy
-contextlevy diff --base main
-contextlevy diff --base origin/main --format json --fail-on-config
+contextlevy check --base main
+contextlevy check --base origin/main --format json --fail-on-config
+contextlevy check --strict
+contextlevy init --workflow
 ```
 
 See [docs/CLI.md](docs/CLI.md) for flags, exit codes, and pre-push hook recipes.
@@ -174,6 +187,7 @@ Skill sources: [.agents/skills/contextlevy/SKILL.md](.agents/skills/contextlevy/
 
 | Doc | Description |
 | --- | --- |
+| [docs/QUICKSTART.md](docs/QUICKSTART.md) | 60-second local setup, modes, allowlists |
 | [docs/CONFIG.md](docs/CONFIG.md) | Config paths, options, severity, estimation, recipes |
 | [docs/ACTION.md](docs/ACTION.md) | Action inputs, outputs, job summary, fork PRs |
 | [docs/CLI.md](docs/CLI.md) | Local CLI install, flags, exit codes, hooks |

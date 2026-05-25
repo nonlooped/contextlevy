@@ -20,11 +20,11 @@ Fail checks (`fail-on-severity`, `fail-above-tokens`) run after analysis regardl
 
 | Module | Responsibility | Key files |
 | --- | --- | --- |
-| `core/` | Analysis, rules, tokens, severity, types, defaults | `analyze.ts`, `rules.ts`, `tokens.ts`, `severity.ts`, `defaults.ts`, `fail.ts`, `paths.ts`, `pricing.ts`, `indexing.ts`, `types.ts` |
+| `core/` | Analysis, rules, tokens, severity, categories, summary, comment gate, types, defaults | `analyze.ts`, `rules.ts`, `tokens.ts`, `severity.ts`, `categories.ts`, `summary.ts`, `comment-gate.ts`, `defaults.ts`, `fail.ts`, `paths.ts`, `pricing.ts`, `indexing.ts`, `types.ts` |
 | `config/` | Config discovery, parsing, resolved settings | `types.ts`, `parse.ts`, `load.ts`, `settings.ts` |
 | `format/` | Shared format helpers, PR comments, terminal output | `shared.ts`, `comment.ts`, `terminal.ts` |
 | `github/` | Action orchestration, auth, PR I/O, job summary | `run.ts`, `auth.ts`, `files.ts`, `comments.ts`, `config-loader.ts`, `summary.ts` |
-| `cli/` | CLI entrypoint, args, orchestration | `index.ts`, `args.ts`, `run.ts`, `format.ts` |
+| `cli/` | CLI entrypoint, args, init scaffold, orchestration | `index.ts`, `args.ts`, `init.ts`, `run.ts`, `format.ts` |
 | `git/` | Local git diff helpers | `diff.ts` |
 
 Entry points:

@@ -8,7 +8,7 @@ metadata:
 
 # ContextLevy (GitHub Action)
 
-ContextLevy estimates how much **net-new AI context** a diff adds — generated code, coverage, lockfiles, build output, agent config — and flags cleanup before it becomes repo debt.
+ContextLevy is a **repo hygiene linter for agent-heavy teams**. It flags PR diffs that will make coding-agent review noisy and posts focused PR comments before that noise becomes repo debt.
 
 **Privacy:** No LLM calls, no code upload, no external API. Runs locally in CI.
 
@@ -84,12 +84,10 @@ Add `contextlevy.config.yml` at the repo root (or see [CONFIG.md](../../../docs/
 Minimal example:
 
 ```yaml
+mode: advisory
 token-threshold: 1000
 fail-on-severity: high
-ignore-paths:
-  - vendor/**
-  - "**/*.map"
-estimation-mode: simple
+allow-paths: []
 ```
 
 Key options:
@@ -130,5 +128,6 @@ When helping a user set up ContextLevy on GitHub:
 1. Confirm they need **PR comments** (Action), **local checks** ([contextlevy-cli](../contextlevy-cli/SKILL.md)), or **both**.
 2. Add `contextlevy.config.yml` before the workflow — keep workflow YAML minimal.
 3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
-4. Recommend `fail-on-severity: high` in CI for advisory-first teams; pair with the CLI skill for pre-push hooks.
+4. Recommend `npx contextlevy init` then `mode: advisory` for new repos; `mode: strict` when teams want artifact fails.
+5. Pair CLI `check --strict` with pre-push hooks; use GitHub Action for PR comments.
 5. Do **not** put GitHub App private keys in `contextlevy.config.yml` — use secrets/variables.

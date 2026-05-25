@@ -24,7 +24,42 @@ Supported config paths, in priority order:
 14. `contextlevy.yaml` (legacy)
 15. `contextlevy.json` (legacy)
 
-If no config file is found, ContextLevy uses built-in defaults.
+If no config file is found, ContextLevy uses **advisory** preset defaults.
+
+## Presets (`mode`)
+
+The fastest way to configure ContextLevy is a single `mode` key. Explicit keys always override preset values.
+
+| Mode | Comments | Fail | Best for |
+| --- | --- | --- | --- |
+| `advisory` (default) | Compact, hygiene-aware, no cost table | None | Most teams getting started |
+| `strict` | Same as advisory | Fails on committed junk categories | Teams wanting a hard hygiene gate |
+| `minimal` | Only at High/Critical severity | None | Low-noise repos |
+| `legacy` | v2.3 defaults (default format, cost table) | Per config | Existing adopters |
+
+```yaml
+mode: advisory
+```
+
+Scaffold config:
+
+```bash
+npx contextlevy init
+npx contextlevy init --mode strict --workflow
+```
+
+See [QUICKSTART.md](QUICKSTART.md) for the full onboarding path.
+
+## Allowlist paths (intentional generated output)
+
+Use `allow-paths` (or alias `allowlist-paths`) when generated or build output **should** be committed:
+
+```yaml
+allow-paths:
+  - "packages/api/src/generated/**"
+```
+
+Allowlisted paths are counted but not flagged as high-impact.
 
 ## JSON Schema
 
@@ -89,15 +124,19 @@ tokenThreshold: 1000
 
 ## Config options
 
-| Key | Default | Description |
+| Key | Default (advisory) | Description |
 | --- | --- | --- |
-| `token-threshold` | `1000` | Skip commenting below this estimated token total |
+| `mode` | `advisory` | Preset: `advisory`, `strict`, `minimal`, `legacy` |
+| `comment-on-hygiene` | `true` | Comment when hygiene categories match, even below token threshold |
+| `token-threshold` | `2000` | Skip commenting below this estimated token total (unless hygiene matches) |
 | `large-file-token-threshold` | `5000` | Mark individual files as large context risks |
 | `max-high-impact-items` | `5` | Max files shown in the high-impact table |
-| `show-cost-table` | `true` | Include estimated model input costs |
-| `comment-format` | `default` | `default` or `compact` |
+| `show-cost-table` | `false` | Include estimated model input costs |
+| `comment-format` | `compact` | `default` or `compact` |
 | `ignore-paths` | `[]` | Glob patterns excluded from analysis entirely |
-| `allow-paths` | `[]` | Glob patterns counted but not flagged as high-impact |
+| `allow-paths` / `allowlist-paths` | `[]` | Allowlist — counted but not flagged as high-impact |
+| `fail-on-categories` | `[]` (`strict` preset sets junk categories) | Fail when diff includes these categories |
+| `warn-only-categories` | `[]` | Never fail solely on these categories |
 | `fail-on-severity` | unset | Fail workflow at `low` / `medium` / `high` / `critical` or above |
 | `fail-above-tokens` | unset | Fail workflow when estimated tokens exceed this value |
 | `estimation-mode` | `simple` | `simple` (`ceil(chars / 4)`) or `tokenizer` (local BPE, no network) |
@@ -105,7 +144,7 @@ tokenThreshold: 1000
 | `severity-thresholds` | built-in defaults | Override token/high-impact counts for Low/Medium/High/Critical |
 | `pricing-profiles` | built-in defaults | Array of `{ name, inputCostPerMillion }` objects |
 
-When `fail-on-severity` or `fail-above-tokens` is set, ContextLevy fails the workflow if thresholds are exceeded. **Fail mode runs even when the PR comment is skipped** — for example, when estimated tokens are below `token-threshold`. Analysis and fail checks always run; `token-threshold` only controls whether a comment is posted.
+When `fail-on-categories`, `fail-on-severity`, or `fail-above-tokens` is set, ContextLevy fails the workflow if thresholds are exceeded. **Fail mode runs even when the PR comment is skipped.** Analysis and fail checks always run; comment posting uses token threshold, hygiene categories, and agent-config changes.
 
 ## Severity levels
 

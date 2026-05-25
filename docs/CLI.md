@@ -8,45 +8,53 @@ Run ContextLevy locally against your working tree or staged changes before openi
 
 ```bash
 npm install -g contextlevy
-contextlevy diff --base main
+contextlevy check --base main
 ```
 
-Or from a clone of this repository:
+Or without a global install:
 
 ```bash
-npm install
-npm run build:cli
-npm link   # optional: install `contextlevy` globally
-```
-
-Or invoke directly after building:
-
-```bash
-node bin/contextlevy.js diff --base main
+npx contextlevy check --base main
+npx contextlevy init
 ```
 
 ## Commands
 
-### `contextlevy diff`
+### `contextlevy check` (recommended)
 
-Analyze changes against a base ref.
+Analyze changes against a base ref. `diff` is an alias.
 
 ```bash
 # Working tree vs main
-contextlevy diff --base main
+contextlevy check --base main
 
 # Staged changes only
-contextlevy diff --staged
+contextlevy check --staged
 
 # JSON for scripts and hooks
-contextlevy diff --base origin/main --format json
+contextlevy check --base origin/main --format json
 
-# Respect fail settings from contextlevy.config.yml
-contextlevy diff --base main --fail-on-config
+# Apply fail settings from contextlevy.config.yml
+contextlevy check --base main --fail-on-config
+
+# Strict category-based gate (dist/, coverage/, etc.)
+contextlevy check --base main --strict
 
 # One-off token threshold
-contextlevy diff --base main --fail-above-tokens 10000
+contextlevy check --base main --fail-above-tokens 10000
 ```
+
+### `contextlevy init`
+
+Scaffold configuration (and optionally a GitHub workflow):
+
+```bash
+contextlevy init
+contextlevy init --mode strict --workflow
+contextlevy init --dry-run
+```
+
+Refuses to overwrite existing files unless `--force`.
 
 #### Flags
 
@@ -55,7 +63,8 @@ contextlevy diff --base main --fail-above-tokens 10000
 | `--base <ref>` | `main` | Git ref to diff against |
 | `--staged` | off | Analyze staged changes only (`git diff --cached`) |
 | `--format <fmt>` | `default` | Output format: `default`, `compact`, or `json` |
-| `--fail-on-config` | off | Apply `fail-above-tokens` and `fail-on-severity` from config |
+| `--fail-on-config` | off | Apply fail settings from config |
+| `--strict` | off | Shorthand for category-based fails (implies `--fail-on-config`) |
 | `--fail-above-tokens <n>` | — | Override fail threshold (ignored when `--fail-on-config` is set) |
 
 #### Exit codes
@@ -66,18 +75,27 @@ contextlevy diff --base main --fail-above-tokens 10000
 | `1` | Fail threshold exceeded |
 | `2` | Usage, config, or git error |
 
+#### JSON output
+
+`--format json` includes enriched fields for hooks:
+
+- `riskLevel`
+- `highImpactCategories`
+- `reviewSummary`
+- `failDecision`
+
 ## Configuration
 
-The CLI reads `contextlevy.config.yml` (and other [supported config paths](CONFIG.md#config-paths)) from the repository root. See [CONFIG.md](CONFIG.md) for all options.
+The CLI reads `contextlevy.config.yml` (and other [supported config paths](CONFIG.md#config-paths)) from the repository root. See [CONFIG.md](CONFIG.md) for presets and all options.
+
+When no config exists, the CLI prints: `Run: npx contextlevy init`
 
 ## Pre-push hook
-
-Add a script to catch high-context diffs before they reach CI:
 
 ```json
 {
   "scripts": {
-    "contextlevy": "contextlevy diff --base origin/main --fail-on-config"
+    "contextlevy": "contextlevy check --base origin/main --fail-on-config"
   }
 }
 ```
