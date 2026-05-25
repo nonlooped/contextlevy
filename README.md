@@ -52,7 +52,7 @@
 
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for benchmark tables, monorepo recipes, and output usage.
 
-**Live demo:** [open example PR](https://github.com/unloopedmido/contextlevy/pull/PLACEHOLDER) — ContextLevy commenting on intentional high-context fixtures ([details](examples/README.md)).
+**Live demo:** [open example PR](https://github.com/unloopedmido/contextlevy/pull/12) — ContextLevy commenting on intentional high-context fixtures ([details](examples/README.md)).
 
 ## Why ContextLevy?
 
