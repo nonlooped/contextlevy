@@ -66,5 +66,5 @@ body:
     id: extra
     attributes:
       label: Additional context
-      description: Config file (`.contextlevy.yml`), action logs, or links to a public PR if available.
+      description: Config file (`contextlevy.config.yml`), action logs, or links to a public PR if available.
       render: shell

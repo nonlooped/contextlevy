@@ -41,7 +41,7 @@ contextlevy diff --staged
 # JSON for scripts and hooks
 contextlevy diff --base origin/main --format json
 
-# Respect fail settings from .contextlevy.yml
+# Respect fail settings from contextlevy.config.yml
 contextlevy diff --base main --fail-on-config
 
 # One-off token threshold
@@ -68,7 +68,7 @@ contextlevy diff --base main --fail-above-tokens 10000
 
 ## Configuration
 
-The CLI reads `.contextlevy.yml` (and other [supported config paths](CONFIG.md#config-paths)) from the repository root. See [CONFIG.md](CONFIG.md) for all options.
+The CLI reads `contextlevy.config.yml` (and other [supported config paths](CONFIG.md#config-paths)) from the repository root. See [CONFIG.md](CONFIG.md) for all options.
 
 ## Pre-push hook
 

@@ -10,7 +10,7 @@ import {
 describe('loadConfigFile', () => {
   it('loads YAML config with kebab-case keys', () => {
     const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
-    const configPath = join(dir, '.contextlevy.yml');
+    const configPath = join(dir, 'contextlevy.config.yml');
     writeFileSync(
       configPath,
       [
@@ -60,7 +60,7 @@ describe('loadConfigFile', () => {
 
     const config = await loadConfigFromRepository(async (path, ref) => {
       requested.push(`${path}@${ref}`);
-      if (path === '.github/contextlevy.yml' && ref === 'base-sha') {
+      if (path === '.github/contextlevy.config.yml' && ref === 'base-sha') {
         return 'token-threshold: 42\n';
       }
       return null;
@@ -70,7 +70,16 @@ describe('loadConfigFile', () => {
       tokenThreshold: 42,
     });
     expect(requested).toContain(`${DEFAULT_CONFIG_PATHS[0]}@base-sha`);
-    expect(requested).toContain('.github/contextlevy.yml@base-sha');
+    expect(requested).toContain('.github/contextlevy.config.yml@base-sha');
+  });
+
+  it('loads legacy .contextlevy.yml when no contextlevy.config.yml exists', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'contextlevy-config-'));
+    writeFileSync(join(dir, '.contextlevy.yml'), 'token-threshold: 900\n');
+
+    expect(loadConfigFile(dir)).toEqual({
+      tokenThreshold: 900,
+    });
   });
 
   it('rejects non-finite numeric config values', () => {

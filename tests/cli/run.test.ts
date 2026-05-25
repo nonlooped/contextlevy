@@ -47,7 +47,7 @@ describe('runCliDiff', () => {
   });
 
   it('exits non-zero when fail-on-config thresholds are exceeded', () => {
-    writeFileSync(join(repoDir, '.contextlevy.yml'), 'fail-above-tokens: 100\n');
+    writeFileSync(join(repoDir, 'contextlevy.config.yml'), 'fail-above-tokens: 100\n');
     mkdirSync(join(repoDir, 'coverage'), { recursive: true });
     writeFileSync(join(repoDir, 'coverage', 'lcov.info'), 'A'.repeat(5000));
     git(repoDir, 'add', 'coverage/lcov.info');

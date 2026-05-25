@@ -61,10 +61,10 @@ jobs:
 
 ### Action behavior
 
-- Reads config from the **base branch** (a PR cannot silence the check by editing `.contextlevy.yml` in the same diff).
+- Reads config from the **base branch** (a PR cannot silence the check by editing `contextlevy.config.yml` in the same diff).
 - Posts a PR comment when estimated tokens exceed `token-threshold`.
 - **Fail mode** (`fail-on-severity` or `fail-above-tokens` in config) fails the workflow even when the comment is skipped.
-- Workflow YAML only needs auth inputs; all tuning lives in `.contextlevy.yml`.
+- Workflow YAML only needs auth inputs; all tuning lives in `contextlevy.config.yml`.
 
 ### Action outputs (for downstream steps)
 
@@ -79,7 +79,7 @@ jobs:
 
 ## Configuration
 
-Add `.contextlevy.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
+Add `contextlevy.config.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
 
 Minimal example:
 
@@ -128,7 +128,7 @@ For full config tables, severity levels, and recipes, see [reference.md](referen
 When helping a user set up ContextLevy on GitHub:
 
 1. Confirm they need **PR comments** (Action), **local checks** ([contextlevy-cli](../contextlevy-cli/SKILL.md)), or **both**.
-2. Add `.contextlevy.yml` before the workflow — keep workflow YAML minimal.
+2. Add `contextlevy.config.yml` before the workflow — keep workflow YAML minimal.
 3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
 4. Recommend `fail-on-severity: high` in CI for advisory-first teams; pair with the CLI skill for pre-push hooks.
-5. Do **not** put GitHub App private keys in `.contextlevy.yml` — use secrets/variables.
+5. Do **not** put GitHub App private keys in `contextlevy.config.yml` — use secrets/variables.

@@ -4,6 +4,12 @@ import { parseConfigContents } from './parse';
 import type { ContextLevyConfig } from './types';
 
 export const DEFAULT_CONFIG_PATHS = [
+  'contextlevy.config.yml',
+  'contextlevy.config.yaml',
+  'contextlevy.config.json',
+  '.github/contextlevy.config.yml',
+  '.github/contextlevy.config.yaml',
+  '.github/contextlevy.config.json',
   '.contextlevy.yml',
   '.contextlevy.yaml',
   '.contextlevy.json',

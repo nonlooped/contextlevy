@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Recommended config filename is now `contextlevy.config.yml` (legacy `.contextlevy.yml` and related paths still supported).
 - Documentation split into focused guides under `docs/` (CONFIG, ACTION, CLI, TROUBLESHOOTING, DEVELOPMENT, ARCHITECTURE); README trimmed to quick start and index.
 - Source reorganized into `core/`, `config/`, `format/`, `github/`, `cli/`, and `git/` modules with explicit dependency boundaries.
 

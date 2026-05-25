@@ -46,7 +46,7 @@ contextlevy diff --staged
 # JSON for scripts / hooks
 contextlevy diff --base origin/main --format json
 
-# Apply fail settings from .contextlevy.yml
+# Apply fail settings from contextlevy.config.yml
 contextlevy diff --base main --fail-on-config
 
 # One-off threshold
@@ -80,7 +80,7 @@ contextlevy diff --base main --fail-above-tokens 10000
 
 ## Configuration
 
-Add `.contextlevy.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
+Add `contextlevy.config.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
 
 Minimal example:
 
@@ -129,6 +129,6 @@ For full config tables, severity levels, and recipes, see [reference.md](../cont
 When helping a user set up the ContextLevy CLI:
 
 1. Ask whether they need **local checks** (CLI), **PR comments** ([contextlevy](../contextlevy/SKILL.md)), or **both**.
-2. Add `.contextlevy.yml` with `fail-on-severity` or `fail-above-tokens` when using `--fail-on-config`.
+2. Add `contextlevy.config.yml` with `fail-on-severity` or `fail-above-tokens` when using `--fail-on-config`.
 3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
 4. Recommend `fail-on-config` in pre-push hooks; use `fail-on-severity: high` in CI for advisory-first teams.

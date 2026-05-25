@@ -35554,6 +35554,12 @@ const node_fs_1 = __nccwpck_require__(3024);
 const node_path_1 = __nccwpck_require__(6760);
 const parse_1 = __nccwpck_require__(8353);
 exports.DEFAULT_CONFIG_PATHS = [
+    'contextlevy.config.yml',
+    'contextlevy.config.yaml',
+    'contextlevy.config.json',
+    '.github/contextlevy.config.yml',
+    '.github/contextlevy.config.yaml',
+    '.github/contextlevy.config.json',
     '.contextlevy.yml',
     '.contextlevy.yaml',
     '.contextlevy.json',

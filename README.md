@@ -140,7 +140,7 @@ jobs:
 
 That is the full setup. ContextLevy reads your PR diff, estimates context weight, and comments when thresholds are exceeded.
 
-Add `.contextlevy.yml` to tune thresholds, ignore paths, and fail modes — see [docs/CONFIG.md](docs/CONFIG.md).
+Add `contextlevy.config.yml` to tune thresholds, ignore paths, and fail modes — see [docs/CONFIG.md](docs/CONFIG.md).
 
 ### Simple mode: `GITHUB_TOKEN` only
 

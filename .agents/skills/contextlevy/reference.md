@@ -2,15 +2,21 @@
 
 ## Config file paths (priority order)
 
-1. `.contextlevy.yml`
-2. `.contextlevy.yaml`
-3. `.contextlevy.json`
-4. `.github/contextlevy.yml`
-5. `.github/contextlevy.yaml`
-6. `.github/contextlevy.json`
-7. `contextlevy.yml`
-8. `contextlevy.yaml`
-9. `contextlevy.json`
+1. `contextlevy.config.yml`
+2. `contextlevy.config.yaml`
+3. `contextlevy.config.json`
+4. `.github/contextlevy.config.yml`
+5. `.github/contextlevy.config.yaml`
+6. `.github/contextlevy.config.json`
+7. `.contextlevy.yml` (legacy)
+8. `.contextlevy.yaml` (legacy)
+9. `.contextlevy.json` (legacy)
+10. `.github/contextlevy.yml` (legacy)
+11. `.github/contextlevy.yaml` (legacy)
+12. `.github/contextlevy.json` (legacy)
+13. `contextlevy.yml` (legacy)
+14. `contextlevy.yaml` (legacy)
+15. `contextlevy.json` (legacy)
 
 Keys accept kebab-case or camelCase (`token-threshold` / `tokenThreshold`).
 
