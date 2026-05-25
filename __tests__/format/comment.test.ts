@@ -1,12 +1,6 @@
-import {
-  buildSuggestions,
-  COMMENT_MARKER,
-  formatComment,
-  formatCompactTokens,
-  getRiskLevel,
-} from '../src/comment';
-import { DEFAULT_PRICING_PROFILES } from '../src/pricing';
-import type { PullRequestAnalysis } from '../src/types';
+import { DEFAULT_PRICING_PROFILES } from '../../src/core/pricing';
+import type { PullRequestAnalysis } from '../../src/core/types';
+import { buildSuggestions, COMMENT_MARKER, formatComment } from '../../src/format/comment';
 
 const defaultCommentOptions = {
   maxHighImpactItems: 5,
@@ -17,7 +11,10 @@ const defaultCommentOptions = {
 
 const analysis: PullRequestAnalysis = {
   totalEstimatedTokens: 37_891,
-  suggestions: ['Add coverage/ to .gitignore.', 'Avoid committing generated output unless required.'],
+  suggestions: [
+    'Add coverage/ to .gitignore.',
+    'Avoid committing generated output unless required.',
+  ],
   files: [
     {
       filename: 'examples/high-impact-pr/coverage/lcov.info',
@@ -37,20 +34,6 @@ const analysis: PullRequestAnalysis = {
     },
   ],
 };
-
-describe('formatCompactTokens', () => {
-  it('formats large counts with one decimal k suffix', () => {
-    expect(formatCompactTokens(37_891)).toBe('37.9k');
-    expect(formatCompactTokens(32_000)).toBe('32.0k');
-    expect(formatCompactTokens(5_792)).toBe('5.8k');
-  });
-});
-
-describe('getRiskLevel', () => {
-  it('marks large high-impact PRs as High', () => {
-    expect(getRiskLevel(37_891, 2)).toBe('High');
-  });
-});
 
 describe('buildSuggestions', () => {
   it('adds indexing guidance for generated and coverage artifacts', () => {
@@ -92,7 +75,9 @@ describe('formatComment', () => {
     expect(body).toContain('| Kimi K2.6 |');
     expect(body).toContain('**Suggestions**');
     expect(body).toContain('ContextLevy estimates context risk, not exact billing.');
-    expect(body).toContain('ContextLevy runs locally in CI and does not send code to an external API.');
+    expect(body).toContain(
+      'ContextLevy runs locally in CI and does not send code to an external API.',
+    );
     expect(body.endsWith(COMMENT_MARKER)).toBe(true);
   });
 

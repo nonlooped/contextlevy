@@ -14,7 +14,10 @@ function globToRegExp(pattern: string): RegExp {
       if (normalized[index + 1] === '/') index += 1;
       continue;
     }
-    if (char === '*') { regex += '[^/]*'; continue; }
+    if (char === '*') {
+      regex += '[^/]*';
+      continue;
+    }
     regex += escapeRegex(char);
   }
   regex += '$';

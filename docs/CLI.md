@@ -68,7 +68,7 @@ contextlevy diff --base main --fail-above-tokens 10000
 
 ## Configuration
 
-The CLI reads `.contextlevy.yml` (and other [supported config paths](../README.md#configuration)) from the repository root. See the main [README](../README.md) for all options.
+The CLI reads `.contextlevy.yml` (and other [supported config paths](CONFIG.md#config-paths)) from the repository root. See [CONFIG.md](CONFIG.md) for all options.
 
 ## Pre-push hook
 

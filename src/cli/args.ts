@@ -40,8 +40,6 @@ export function parseCliArgs(argv: string[]): CliArgs {
     staged: Boolean(values.staged),
     format: format as CliArgs['format'],
     failOnConfig: Boolean(values['fail-on-config']),
-    failAboveTokens: values['fail-above-tokens']
-      ? Number(values['fail-above-tokens'])
-      : undefined,
+    failAboveTokens: values['fail-above-tokens'] ? Number(values['fail-above-tokens']) : undefined,
   };
 }

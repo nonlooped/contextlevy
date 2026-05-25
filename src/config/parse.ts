@@ -1,65 +1,19 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import type { ContextCategory, CustomRule, EstimationMode, PricingProfile, SeverityThresholds } from './types';
+import { DEFAULT_PRICING_PROFILES } from '../core/pricing';
+import {
+  CONTEXT_CATEGORIES,
+  type CommentFormat,
+  type ContextCategory,
+  type CustomRule,
+  type EstimationMode,
+  type PricingProfile,
+  type SeverityThresholds,
+} from '../core/types';
+import type { ContextLevyConfig } from './types';
 
-export type CommentFormat = 'default' | 'compact';
-
-export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
-
-export interface ContextLevyConfig {
-  tokenThreshold?: number;
-  largeFileTokenThreshold?: number;
-  maxHighImpactItems?: number;
-  showCostTable?: boolean;
-  pricingProfiles?: PricingProfile[];
-  commentFormat?: CommentFormat;
-  ignorePaths?: string[];
-  allowPaths?: string[];
-  failOnSeverity?: SeverityLevel;
-  failAboveTokens?: number;
-  estimationMode?: EstimationMode;
-  customRules?: CustomRule[];
-  severityThresholds?: Partial<SeverityThresholds>;
-}
-
-const SEVERITY_LEVELS: SeverityLevel[] = ['low', 'medium', 'high', 'critical'];
-
-const CONTEXT_CATEGORIES: ContextCategory[] = [
-  'generated',
-  'coverage',
-  'lockfile',
-  'build-output',
-  'log',
-  'snapshot',
-  'agent-config',
-  'minified',
-  'vendor',
-  'source-map',
-  'protobuf',
-  'openapi',
-  'dependency-dir',
-  'cache-dir',
-  'test-output',
-  'fixture',
-  'binary-asset',
-  'large-file',
-  'other',
-];
+const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'] as const;
 
 const ESTIMATION_MODES: EstimationMode[] = ['simple', 'tokenizer'];
-
-export const DEFAULT_CONFIG_PATHS = [
-  '.contextlevy.yml',
-  '.contextlevy.yaml',
-  '.contextlevy.json',
-  '.github/contextlevy.yml',
-  '.github/contextlevy.yaml',
-  '.github/contextlevy.json',
-  'contextlevy.yml',
-  'contextlevy.yaml',
-  'contextlevy.json',
-] as const;
 
 function readConfigValue(
   record: Record<string, unknown>,
@@ -108,18 +62,18 @@ function readStringArray(value: unknown, fieldName: string): string[] | undefine
   });
 }
 
-function parseSeverityLevel(value: unknown, fieldName: string): SeverityLevel | undefined {
+function parseSeverityLevel(value: unknown, fieldName: string) {
   if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value !== 'string') {
     throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
   }
-  const normalized = value.trim().toLowerCase() as SeverityLevel;
-  if (!SEVERITY_LEVELS.includes(normalized)) {
+  const normalized = value.trim().toLowerCase();
+  if (!SEVERITY_LEVELS.includes(normalized as (typeof SEVERITY_LEVELS)[number])) {
     throw new Error(`${fieldName} must be one of: low, medium, high, critical.`);
   }
-  return normalized;
+  return normalized as (typeof SEVERITY_LEVELS)[number];
 }
 
 function readOptionalBoolean(value: unknown, fieldName: string): boolean | undefined {
@@ -190,8 +144,7 @@ export function parsePricingProfilesValue(value: unknown): PricingProfile[] {
     }
 
     const record = entry as Record<string, unknown>;
-    const inputCostPerMillion =
-      record.inputCostPerMillion ?? record['input-cost-per-million'];
+    const inputCostPerMillion = record.inputCostPerMillion ?? record['input-cost-per-million'];
 
     if (typeof inputCostPerMillion !== 'number' || inputCostPerMillion < 0) {
       throw new Error(
@@ -206,13 +159,29 @@ export function parsePricingProfilesValue(value: unknown): PricingProfile[] {
   });
 }
 
+export function parsePricingProfiles(input: string): PricingProfile[] {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return DEFAULT_PRICING_PROFILES;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error('pricing-profiles must be valid JSON.');
+  }
+
+  return parsePricingProfilesValue(parsed);
+}
+
 function parseContextCategory(value: unknown, fieldName: string): ContextCategory {
   if (typeof value !== 'string') {
     throw new Error(`${fieldName} must be a supported context category.`);
   }
 
   const normalized = value.trim().toLowerCase() as ContextCategory;
-  if (!CONTEXT_CATEGORIES.includes(normalized)) {
+  if (!(CONTEXT_CATEGORIES as readonly string[]).includes(normalized)) {
     throw new Error(`${fieldName} must be a supported context category.`);
   }
 
@@ -332,7 +301,7 @@ export function parseSeverityThresholdsValue(value: unknown): Partial<SeverityTh
   return thresholds;
 }
 
-function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
+export function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error(`${sourcePath} must contain a JSON or YAML object.`);
   }
@@ -340,7 +309,11 @@ function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   const record = raw as Record<string, unknown>;
   const pricingProfilesRaw = readConfigValue(record, 'pricingProfiles', 'pricing-profiles');
   const customRulesRaw = readConfigValue(record, 'customRules', 'custom-rules');
-  const severityThresholdsRaw = readConfigValue(record, 'severityThresholds', 'severity-thresholds');
+  const severityThresholdsRaw = readConfigValue(
+    record,
+    'severityThresholds',
+    'severity-thresholds',
+  );
 
   const config: ContextLevyConfig = {
     tokenThreshold: readOptionalInteger(
@@ -422,41 +395,4 @@ export function parseConfigContents(contents: string, sourcePath: string): Conte
   }
 
   return normalizeConfig(parsed, sourcePath);
-}
-
-export function resolveConfigPath(workspaceRoot: string): string | null {
-  for (const candidate of DEFAULT_CONFIG_PATHS) {
-    const resolved = join(workspaceRoot, candidate);
-    if (existsSync(resolved)) {
-      return resolved;
-    }
-  }
-
-  return null;
-}
-
-export function loadConfigFile(workspaceRoot: string): ContextLevyConfig | null {
-  const resolvedPath = resolveConfigPath(workspaceRoot);
-  if (!resolvedPath) {
-    return null;
-  }
-
-  const contents = readFileSync(resolvedPath, 'utf8');
-  return parseConfigContents(contents, resolvedPath);
-}
-
-export type RepositoryConfigReader = (path: string, ref: string) => Promise<string | null>;
-
-export async function loadConfigFromRepository(
-  readConfig: RepositoryConfigReader,
-  ref: string,
-): Promise<ContextLevyConfig | null> {
-  for (const candidate of DEFAULT_CONFIG_PATHS) {
-    const contents = await readConfig(candidate, ref);
-    if (contents !== null) {
-      return parseConfigContents(contents, `${candidate}@${ref}`);
-    }
-  }
-
-  return null;
 }

@@ -56,9 +56,7 @@ const RULES: PathRule[] = [
   },
   {
     test: (f) =>
-      segmentIncludes(f, 'coverage') ||
-      /\.(lcov|coverage|cov)$/i.test(f) ||
-      /lcov\.info$/i.test(f),
+      segmentIncludes(f, 'coverage') || /\.(lcov|coverage|cov)$/i.test(f) || /lcov\.info$/i.test(f),
     match: {
       category: 'coverage',
       label: 'Coverage output is usually noisy and should not be committed.',
@@ -66,8 +64,7 @@ const RULES: PathRule[] = [
     },
   },
   {
-    test: (f) =>
-      /(?:^|\/)(?:dist|build|out|\.next|target\/debug|target\/release)(?:\/|$)/.test(f),
+    test: (f) => /(?:^|\/)(?:dist|build|out|\.next|target\/debug|target\/release)(?:\/|$)/.test(f),
     match: {
       category: 'build-output',
       label: 'Build artifacts are rarely useful agent context.',
@@ -95,7 +92,8 @@ const RULES: PathRule[] = [
     match: {
       category: 'vendor',
       label: 'Vendored dependencies are bulky and rarely useful as agent context.',
-      suggestion: 'Prefer lockfiles and package managers over committing vendor trees when possible.',
+      suggestion:
+        'Prefer lockfiles and package managers over committing vendor trees when possible.',
     },
   },
   {
@@ -120,8 +118,7 @@ const RULES: PathRule[] = [
     },
   },
   {
-    test: (f) =>
-      /(?:^|\/)(?:playwright-report|test-results|htmlcov|\.nyc_output)(?:\/|$)/.test(f),
+    test: (f) => /(?:^|\/)(?:playwright-report|test-results|htmlcov|\.nyc_output)(?:\/|$)/.test(f),
     match: {
       category: 'test-output',
       label: 'Test output is noisy and should not be committed.',
@@ -141,8 +138,7 @@ const RULES: PathRule[] = [
   },
   {
     test: (f) =>
-      /(?:^|\/)fixtures?(?:\/|$)/i.test(f) &&
-      /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
+      /(?:^|\/)fixtures?(?:\/|$)/i.test(f) && /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
     match: {
       category: 'fixture',
       label: 'Large fixture files can dominate agent context.',
@@ -156,8 +152,10 @@ const RULES: PathRule[] = [
       ),
     match: {
       category: 'lockfile',
-      label: 'Lockfiles add bulk context; agents often need dependency names but not every resolved URL.',
-      suggestion: 'Commit lockfiles when your team policy requires reproducible installs — just expect higher context cost.',
+      label:
+        'Lockfiles add bulk context; agents often need dependency names but not every resolved URL.',
+      suggestion:
+        'Commit lockfiles when your team policy requires reproducible installs — just expect higher context cost.',
     },
   },
   {

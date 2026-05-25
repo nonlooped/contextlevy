@@ -1,4 +1,4 @@
-import { classifyPath } from '../src/rules';
+import { classifyPath } from '../src/core/rules';
 
 describe('classifyPath', () => {
   it('flags prisma generated output', () => {

@@ -1,9 +1,13 @@
 import { matchesAnyPathPattern } from './paths';
 import { classifyPath, DEFAULT_MATCH, largeFileMatch } from './rules';
 import { estimateTokensFromAdditions, estimateTokensFromPatch } from './tokens';
-import type { FileAnalysis, PullRequestAnalysis, PullRequestFileLike } from './types';
-
-import type { EstimationMode, CustomRule } from './types';
+import type {
+  CustomRule,
+  EstimationMode,
+  FileAnalysis,
+  PullRequestAnalysis,
+  PullRequestFileLike,
+} from './types';
 
 export interface AnalyzeOptions {
   largeFileTokenThreshold: number;
@@ -45,9 +49,7 @@ export function analyzePullRequestFiles(
 
     const fromPatch = estimateTokensFromPatch(file.patch, options.estimationMode);
     const estimatedTokens =
-      fromPatch > 0 || file.patch
-        ? fromPatch
-        : estimateTokensFromAdditions(file.additions);
+      fromPatch > 0 || file.patch ? fromPatch : estimateTokensFromAdditions(file.additions);
 
     if (estimatedTokens <= 0) {
       continue;
@@ -88,7 +90,5 @@ export function getHighImpactFiles(
   analysis: PullRequestAnalysis,
   maxItems: number,
 ): FileAnalysis[] {
-  return analysis.files
-    .filter((file) => file.category !== 'other')
-    .slice(0, maxItems);
+  return analysis.files.filter((file) => file.category !== 'other').slice(0, maxItems);
 }

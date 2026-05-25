@@ -1,12 +1,15 @@
-import type { ContextLevyConfig, SeverityLevel } from './config';
-import { DEFAULT_PRICING_PROFILES } from './pricing';
+import { DEFAULT_SEVERITY_THRESHOLDS } from '../core/defaults';
+import { DEFAULT_PRICING_PROFILES } from '../core/pricing';
 import type {
   CommentFormat,
   CustomRule,
   EstimationMode,
   PricingProfile,
   SeverityThresholds,
-} from './types';
+} from '../core/types';
+import type { ContextLevyConfig, SeverityLevel } from './types';
+
+export { DEFAULT_SEVERITY_THRESHOLDS };
 
 export interface ContextLevySettings {
   tokenThreshold: number;
@@ -23,15 +26,6 @@ export interface ContextLevySettings {
   customRules: CustomRule[];
   severityThresholds: SeverityThresholds;
 }
-
-export const DEFAULT_SEVERITY_THRESHOLDS: SeverityThresholds = {
-  mediumTokens: 5_000,
-  highTokens: 20_000,
-  criticalTokens: 100_000,
-  mediumHighImpactCount: 1,
-  highHighImpactCount: 3,
-  criticalHighImpactCount: 8,
-};
 
 const DEFAULTS: ContextLevySettings = {
   tokenThreshold: 1000,

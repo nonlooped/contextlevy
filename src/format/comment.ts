@@ -1,77 +1,27 @@
-import { getHighImpactFiles } from './analyze';
+import { getHighImpactFiles } from '../core/analyze';
 import {
   formatIndexingSuggestion,
   getIndexablePaths,
   INDEXABLE_CATEGORIES,
-} from './indexing';
-import { estimateSessionCost } from './pricing';
-import type { CommentFormat, CommentOptions, FileAnalysis, PricingProfile, PullRequestAnalysis, SeverityThresholds } from './types';
-import { DEFAULT_SEVERITY_THRESHOLDS } from './settings';
+} from '../core/indexing';
+import { estimateSessionCost } from '../core/pricing';
+import { formatRiskLevel, getRiskLevel, RISK_LEVEL_EMOJI } from '../core/severity';
+import type {
+  CommentOptions,
+  FileAnalysis,
+  PricingProfile,
+  PullRequestAnalysis,
+} from '../core/types';
+import {
+  COMPACT_MAX_FINDINGS,
+  COMPACT_MAX_SUGGESTIONS,
+  formatCompactTokens,
+  formatCostRange,
+  formatUsd,
+  resolveSeverityThresholds,
+} from './shared';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
-const COMPACT_MAX_FINDINGS = 3;
-const COMPACT_MAX_SUGGESTIONS = 2;
-
-export function formatCompactTokens(value: number): string {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k`;
-  }
-
-  return value.toLocaleString('en-US');
-}
-
-const SEVERITY_RANK = {
-  Low: 0,
-  Medium: 1,
-  High: 2,
-  Critical: 3,
-} as const;
-
-export function severityMeetsThreshold(
-  actual: ReturnType<typeof getRiskLevel>,
-  threshold: 'low' | 'medium' | 'high' | 'critical',
-): boolean {
-  const thresholdRank =
-    threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
-  return SEVERITY_RANK[actual] >= thresholdRank;
-}
-
-export function getRiskLevel(
-  totalTokens: number,
-  highImpactCount: number,
-  thresholds: SeverityThresholds = DEFAULT_SEVERITY_THRESHOLDS,
-): 'Low' | 'Medium' | 'High' | 'Critical' {
-  if (
-    totalTokens >= thresholds.criticalTokens ||
-    highImpactCount >= thresholds.criticalHighImpactCount
-  ) {
-    return 'Critical';
-  }
-  if (
-    totalTokens >= thresholds.highTokens ||
-    highImpactCount >= thresholds.highHighImpactCount
-  ) {
-    return 'High';
-  }
-  if (
-    totalTokens >= thresholds.mediumTokens ||
-    highImpactCount >= thresholds.mediumHighImpactCount
-  ) {
-    return 'Medium';
-  }
-  return 'Low';
-}
-
-const RISK_LEVEL_EMOJI: Record<ReturnType<typeof getRiskLevel>, string> = {
-  Low: '🟢',
-  Medium: '🟡',
-  High: '🔴',
-  Critical: '⛔',
-};
-
-export function formatRiskLevel(riskLevel: ReturnType<typeof getRiskLevel>): string {
-  return `${RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
-}
 
 const COMPACT_RISK_LEVEL_EMOJI: Record<ReturnType<typeof getRiskLevel>, string> = {
   ...RISK_LEVEL_EMOJI,
@@ -83,40 +33,11 @@ function formatCompactRiskLevel(riskLevel: ReturnType<typeof getRiskLevel>): str
 }
 
 function blockquote(lines: string[]): string {
-  return lines
-    .map((line) => (line.length === 0 ? '>' : `> ${line}`))
-    .join('\n');
-}
-
-function resolveSeverityThresholds(options: {
-  severityThresholds?: SeverityThresholds;
-}): SeverityThresholds {
-  return options.severityThresholds ?? DEFAULT_SEVERITY_THRESHOLDS;
-}
-
-function formatCostRange(cost: number): string {
-  const low = cost * 0.5;
-  const high = cost * 1.5;
-  if (Math.abs(low - high) < 0.005) {
-    return `~${formatUsd(cost)}`;
-  }
-  return `~${formatUsd(low)}–${formatUsd(high)}`;
-}
-
-function formatUsd(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return lines.map((line) => (line.length === 0 ? '>' : `> ${line}`)).join('\n');
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function escapeMarkdownTableCell(value: string): string {
@@ -186,10 +107,7 @@ function formatShortPath(filename: string): string {
   return parts.slice(-2).join('/');
 }
 
-function getFindings(
-  analysis: PullRequestAnalysis,
-  maxItems: number,
-): FileAnalysis[] {
+function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnalysis[] {
   const rows = getHighImpactFiles(analysis, maxItems);
   if (rows.length > 0) {
     return rows;
@@ -268,10 +186,7 @@ function formatCompactCostRange(
   return `**Worst-case input cost:** ~${formatUsd(min)}–${formatUsd(max)}/session`;
 }
 
-function formatCompactComment(
-  analysis: PullRequestAnalysis,
-  options: CommentOptions,
-): string {
+function formatCompactComment(analysis: PullRequestAnalysis, options: CommentOptions): string {
   const severityThresholds = resolveSeverityThresholds(options);
   const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
   const riskLevel = getRiskLevel(
@@ -314,10 +229,7 @@ function formatCompactComment(
   return [COMMENT_MARKER, blockquote(quoteLines)].join('\n');
 }
 
-function formatContextTable(
-  analysis: PullRequestAnalysis,
-  maxItems: number,
-): string {
+function formatContextTable(analysis: PullRequestAnalysis, maxItems: number): string {
   const rows = getFindings(analysis, maxItems);
   const tableHeader = ['| Added | Finding |', '|---:|---|'];
 
@@ -352,10 +264,7 @@ export function formatPricingCostSection(
   ].join('\n');
 }
 
-export function formatComment(
-  analysis: PullRequestAnalysis,
-  options: CommentOptions,
-): string {
+export function formatComment(analysis: PullRequestAnalysis, options: CommentOptions): string {
   if (options.commentFormat === 'compact') {
     return formatCompactComment(analysis, options);
   }
@@ -363,10 +272,7 @@ export function formatComment(
   return formatDefaultComment(analysis, options);
 }
 
-function formatDefaultComment(
-  analysis: PullRequestAnalysis,
-  options: CommentOptions,
-): string {
+function formatDefaultComment(analysis: PullRequestAnalysis, options: CommentOptions): string {
   const severityThresholds = resolveSeverityThresholds(options);
   const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
   const riskLevel = getRiskLevel(

@@ -1,6 +1,6 @@
-import { analyzePullRequestFiles } from '../src/analyze';
-import type { AnalyzeOptions } from '../src/analyze';
-import type { PullRequestFileLike } from '../src/types';
+import type { AnalyzeOptions } from '../src/core/analyze';
+import { analyzePullRequestFiles } from '../src/core/analyze';
+import type { PullRequestFileLike } from '../src/core/types';
 
 const defaultAnalyzeOptions: AnalyzeOptions = {
   largeFileTokenThreshold: 5000,
@@ -71,7 +71,7 @@ describe('analyzePullRequestFiles', () => {
   });
 
   it('overrides category to large-file above threshold', () => {
-    const longLine = '+' + 'x'.repeat(20000);
+    const longLine = `+${'x'.repeat(20000)}`;
     const files: PullRequestFileLike[] = [
       {
         filename: 'src/normal.ts',

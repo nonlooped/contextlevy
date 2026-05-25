@@ -35540,586 +35540,19 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 2475:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.analyzePullRequestFiles = analyzePullRequestFiles;
-exports.getHighImpactFiles = getHighImpactFiles;
-const paths_1 = __nccwpck_require__(8431);
-const rules_1 = __nccwpck_require__(9244);
-const tokens_1 = __nccwpck_require__(7789);
-function uniqueSuggestions(values) {
-    const seen = new Set();
-    const out = [];
-    for (const value of values) {
-        if (!value || seen.has(value)) {
-            continue;
-        }
-        seen.add(value);
-        out.push(value);
-    }
-    return out;
-}
-function analyzePullRequestFiles(files, options) {
-    const analyzed = [];
-    for (const file of files) {
-        if (file.status === 'removed') {
-            continue;
-        }
-        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.ignorePaths)) {
-            continue;
-        }
-        const fromPatch = (0, tokens_1.estimateTokensFromPatch)(file.patch, options.estimationMode);
-        const estimatedTokens = fromPatch > 0 || file.patch
-            ? fromPatch
-            : (0, tokens_1.estimateTokensFromAdditions)(file.additions);
-        if (estimatedTokens <= 0) {
-            continue;
-        }
-        let rule = (0, rules_1.classifyPath)(file.filename, options.customRules);
-        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.allowPaths)) {
-            rule = rules_1.DEFAULT_MATCH;
-        }
-        if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
-            rule = (0, rules_1.largeFileMatch)();
-        }
-        analyzed.push({
-            filename: file.filename,
-            status: file.status,
-            estimatedTokens,
-            category: rule.category,
-            label: rule.label,
-            suggestion: rule.suggestion,
-        });
-    }
-    analyzed.sort((a, b) => b.estimatedTokens - a.estimatedTokens);
-    const totalEstimatedTokens = analyzed.reduce((sum, file) => sum + file.estimatedTokens, 0);
-    return {
-        totalEstimatedTokens,
-        files: analyzed,
-        suggestions: uniqueSuggestions(analyzed.map((file) => file.suggestion)),
-    };
-}
-function getHighImpactFiles(analysis, maxItems) {
-    return analysis.files
-        .filter((file) => file.category !== 'other')
-        .slice(0, maxItems);
-}
-
-
-/***/ }),
-
-/***/ 9081:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.normalizePrivateKey = normalizePrivateKey;
-exports.readAppCredentials = readAppCredentials;
-exports.assertValidAppId = assertValidAppId;
-exports.createAppInstallationToken = createAppInstallationToken;
-exports.resolveGithubToken = resolveGithubToken;
-const core = __importStar(__nccwpck_require__(7484));
-const auth_app_1 = __nccwpck_require__(3833);
-const rest_1 = __nccwpck_require__(4325);
-function normalizePrivateKey(privateKey) {
-    let key = privateKey.trim();
-    if ((key.startsWith('"') && key.endsWith('"')) ||
-        (key.startsWith("'") && key.endsWith("'"))) {
-        key = key.slice(1, -1).trim();
-    }
-    key = key.replace(/\\n/g, '\n');
-    const beginMarker = key.match(/-----BEGIN [^-]+-----/)?.[0];
-    const endMarker = key.match(/-----END [^-]+-----/)?.[0];
-    if (beginMarker && endMarker && !key.includes('\n')) {
-        const body = key.slice(beginMarker.length, key.indexOf(endMarker)).replace(/\s/g, '');
-        const wrappedBody = body.match(/.{1,64}/g) ?? [body];
-        key = [beginMarker, ...wrappedBody, endMarker].join('\n');
-    }
-    if (beginMarker && !key.endsWith('\n')) {
-        key += '\n';
-    }
-    return key;
-}
-function readAppCredentials() {
-    const appId = core.getInput('app-client-id').trim() ||
-        process.env.CONTEXTLEVY_APP_ID?.trim() ||
-        process.env.CONTEXTLEVY_APP_CLIENT_ID?.trim() ||
-        '';
-    const privateKeyRaw = core.getInput('app-private-key').trim() ||
-        process.env.CONTEXTLEVY_APP_PRIVATE_KEY?.trim() ||
-        '';
-    if (!appId && !privateKeyRaw) {
-        return null;
-    }
-    if (!appId || !privateKeyRaw) {
-        throw new Error('GitHub App auth requires both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY.');
-    }
-    return {
-        appId,
-        privateKey: normalizePrivateKey(privateKeyRaw),
-    };
-}
-function assertValidAppId(appId) {
-    if (/^Iv/i.test(appId)) {
-        throw new Error('CONTEXTLEVY_APP_ID looks like a GitHub OAuth Client ID (Iv...). ' +
-            'Use the numeric GitHub App ID from your app settings instead.');
-    }
-}
-async function createAppInstallationToken(credentials, owner, repo) {
-    assertValidAppId(credentials.appId);
-    const auth = (0, auth_app_1.createAppAuth)({
-        appId: credentials.appId,
-        privateKey: credentials.privateKey,
-    });
-    const installationIdInput = core.getInput('app-installation-id').trim() ||
-        process.env.CONTEXTLEVY_APP_INSTALLATION_ID?.trim() ||
-        '';
-    let installationId = installationIdInput ? Number(installationIdInput) : undefined;
-    if (!installationId || Number.isNaN(installationId)) {
-        const appOctokit = new rest_1.Octokit({
-            authStrategy: auth_app_1.createAppAuth,
-            auth: {
-                appId: credentials.appId,
-                privateKey: credentials.privateKey,
-            },
-        });
-        const { data: installation } = await appOctokit.rest.apps.getRepoInstallation({
-            owner,
-            repo,
-        });
-        installationId = installation.id;
-    }
-    const { token } = await auth({
-        type: 'installation',
-        installationId,
-    });
-    if (!token) {
-        throw new Error('Failed to create GitHub App installation token.');
-    }
-    return token;
-}
-async function resolveGithubToken(owner, repo) {
-    const appCredentials = readAppCredentials();
-    if (appCredentials) {
-        core.info('Using ContextLevy GitHub App installation token.');
-        try {
-            return {
-                token: await createAppInstallationToken(appCredentials, owner, repo),
-                source: 'app',
-            };
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            const tokenInput = core.getInput('github-token');
-            const envToken = process.env.GITHUB_TOKEN;
-            const fallbackToken = tokenInput || envToken;
-            if (fallbackToken) {
-                core.warning(`ContextLevy GitHub App auth failed (${message}). Falling back to ${tokenInput ? 'github-token' : 'GITHUB_TOKEN'}.`);
-                return {
-                    token: fallbackToken,
-                    source: tokenInput ? 'github-token' : 'GITHUB_TOKEN',
-                };
-            }
-            throw new Error(`ContextLevy GitHub App auth failed (${message}), and no github-token / GITHUB_TOKEN fallback was available. ` +
-                'Ensure CONTEXTLEVY_APP_PRIVATE_KEY contains the full PEM private key from your GitHub App.');
-        }
-    }
-    const tokenInput = core.getInput('github-token');
-    if (tokenInput) {
-        core.info('Using github-token input.');
-        return { token: tokenInput, source: 'github-token' };
-    }
-    const envToken = process.env.GITHUB_TOKEN;
-    if (envToken) {
-        core.info('Using GITHUB_TOKEN.');
-        return { token: envToken, source: 'GITHUB_TOKEN' };
-    }
-    throw new Error('No GitHub credentials found. Configure the ContextLevy GitHub App or provide github-token / GITHUB_TOKEN.');
-}
-
-
-/***/ }),
-
-/***/ 2246:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.COMMENT_MARKER = void 0;
-exports.formatCompactTokens = formatCompactTokens;
-exports.severityMeetsThreshold = severityMeetsThreshold;
-exports.getRiskLevel = getRiskLevel;
-exports.formatRiskLevel = formatRiskLevel;
-exports.buildSuggestions = buildSuggestions;
-exports.formatPricingCostSection = formatPricingCostSection;
-exports.formatComment = formatComment;
-const analyze_1 = __nccwpck_require__(2475);
-const indexing_1 = __nccwpck_require__(6275);
-const pricing_1 = __nccwpck_require__(4309);
-const settings_1 = __nccwpck_require__(8750);
-exports.COMMENT_MARKER = '<!-- contextlevy -->';
-const COMPACT_MAX_FINDINGS = 3;
-const COMPACT_MAX_SUGGESTIONS = 2;
-function formatCompactTokens(value) {
-    if (value >= 1000) {
-        return `${(value / 1000).toFixed(1)}k`;
-    }
-    return value.toLocaleString('en-US');
-}
-const SEVERITY_RANK = {
-    Low: 0,
-    Medium: 1,
-    High: 2,
-    Critical: 3,
-};
-function severityMeetsThreshold(actual, threshold) {
-    const thresholdRank = threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
-    return SEVERITY_RANK[actual] >= thresholdRank;
-}
-function getRiskLevel(totalTokens, highImpactCount, thresholds = settings_1.DEFAULT_SEVERITY_THRESHOLDS) {
-    if (totalTokens >= thresholds.criticalTokens ||
-        highImpactCount >= thresholds.criticalHighImpactCount) {
-        return 'Critical';
-    }
-    if (totalTokens >= thresholds.highTokens ||
-        highImpactCount >= thresholds.highHighImpactCount) {
-        return 'High';
-    }
-    if (totalTokens >= thresholds.mediumTokens ||
-        highImpactCount >= thresholds.mediumHighImpactCount) {
-        return 'Medium';
-    }
-    return 'Low';
-}
-const RISK_LEVEL_EMOJI = {
-    Low: '🟢',
-    Medium: '🟡',
-    High: '🔴',
-    Critical: '⛔',
-};
-function formatRiskLevel(riskLevel) {
-    return `${RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
-}
-const COMPACT_RISK_LEVEL_EMOJI = {
-    ...RISK_LEVEL_EMOJI,
-    Critical: '🔴',
-};
-function formatCompactRiskLevel(riskLevel) {
-    return `${COMPACT_RISK_LEVEL_EMOJI[riskLevel]} **${riskLevel}**`;
-}
-function blockquote(lines) {
-    return lines
-        .map((line) => (line.length === 0 ? '>' : `> ${line}`))
-        .join('\n');
-}
-function resolveSeverityThresholds(options) {
-    return options.severityThresholds ?? settings_1.DEFAULT_SEVERITY_THRESHOLDS;
-}
-function formatCostRange(cost) {
-    const low = cost * 0.5;
-    const high = cost * 1.5;
-    if (Math.abs(low - high) < 0.005) {
-        return `~${formatUsd(cost)}`;
-    }
-    return `~${formatUsd(low)}–${formatUsd(high)}`;
-}
-function formatUsd(value) {
-    return value.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
-}
-function escapeHtml(value) {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-function escapeMarkdownTableCell(value) {
-    return escapeHtml(value)
-        .replace(/\\/g, '\\\\')
-        .replace(/\|/g, '\\|')
-        .replace(/`/g, '\\`')
-        .replace(/\r?\n/g, ' ');
-}
-function formatInlineCodeInTable(value) {
-    return `\`${escapeMarkdownTableCell(value)}\``;
-}
-function shouldSuggestIndexing(analysis) {
-    return analysis.files.some((file) => indexing_1.INDEXABLE_CATEGORIES.has(file.category));
-}
-function normalizeSuggestion(suggestion) {
-    if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
-        return 'Add `coverage/` to `.gitignore`.';
-    }
-    if (/do not commit generated output unless required/i.test(suggestion)) {
-        return 'Avoid committing generated output unless required.';
-    }
-    if (/keep build output out of version control/i.test(suggestion)) {
-        return 'Keep build output out of version control.';
-    }
-    if (/add \*\.log and logs\/ to \.gitignore/i.test(suggestion)) {
-        return 'Add `*.log` and `logs/` to `.gitignore`.';
-    }
-    return suggestion;
-}
-function buildSuggestions(analysis) {
-    const seen = new Set();
-    const suggestions = [];
-    for (const suggestion of analysis.suggestions) {
-        const normalized = normalizeSuggestion(suggestion);
-        if (!seen.has(normalized)) {
-            seen.add(normalized);
-            suggestions.push(normalized);
-        }
-    }
-    if (shouldSuggestIndexing(analysis)) {
-        const indexingSuggestion = (0, indexing_1.formatIndexingSuggestion)((0, indexing_1.getIndexablePaths)(analysis.files));
-        if (indexingSuggestion && !seen.has(indexingSuggestion)) {
-            seen.add(indexingSuggestion);
-            suggestions.push(indexingSuggestion);
-        }
-    }
-    return suggestions;
-}
-function formatFindingCell(filename, label) {
-    return `${formatInlineCodeInTable(filename)}<br/>${escapeMarkdownTableCell(label)}`;
-}
-function formatShortPath(filename) {
-    const parts = filename.split('/');
-    if (parts.length <= 2) {
-        return filename;
-    }
-    return parts.slice(-2).join('/');
-}
-function getFindings(analysis, maxItems) {
-    const rows = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
-    if (rows.length > 0) {
-        return rows;
-    }
-    return analysis.files.slice(0, maxItems);
-}
-function formatCompactFindings(files, maxItems) {
-    const limit = Math.min(maxItems, COMPACT_MAX_FINDINGS);
-    const shown = files.slice(0, limit);
-    if (shown.length === 0) {
-        return null;
-    }
-    const parts = shown.map((file) => `\`${escapeMarkdownTableCell(formatShortPath(file.filename))}\` **+${formatCompactTokens(file.estimatedTokens)}**`);
-    const remaining = files.length - shown.length;
-    if (remaining > 0) {
-        parts.push(`**+${remaining} more**`);
-    }
-    return parts.join(' · ');
-}
-function formatCompactFixSuggestion(suggestion) {
-    if (/keep build output out of version control/i.test(suggestion)) {
-        return 'remove build output';
-    }
-    if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
-        return 'add `coverage/` to `.gitignore`';
-    }
-    if (/avoid committing generated output unless required/i.test(suggestion)) {
-        return 'avoid generated output';
-    }
-    if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
-        return 'add logs to `.gitignore`';
-    }
-    if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
-        return 'exclude artifacts from agent indexing';
-    }
-    return suggestion.replace(/\.$/, '');
-}
-function formatCompactFixLine(suggestions) {
-    if (suggestions.length === 0) {
-        return null;
-    }
-    return suggestions
-        .slice(0, COMPACT_MAX_SUGGESTIONS)
-        .map((suggestion) => formatCompactFixSuggestion(suggestion))
-        .join(' · ');
-}
-function formatCompactCostRange(totalEstimatedTokens, pricingProfiles) {
-    if (pricingProfiles.length === 0) {
-        return null;
-    }
-    const costs = pricingProfiles.map((profile) => (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, profile.inputCostPerMillion));
-    const min = Math.min(...costs);
-    const max = Math.max(...costs);
-    if (min === max) {
-        return `**Worst-case input cost:** ~${formatUsd(min)}/session`;
-    }
-    return `**Worst-case input cost:** ~${formatUsd(min)}–${formatUsd(max)}/session`;
-}
-function formatCompactComment(analysis, options) {
-    const severityThresholds = resolveSeverityThresholds(options);
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
-    const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
-    const findings = getFindings(analysis, options.maxHighImpactItems);
-    const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
-    const costLine = options.showCostTable
-        ? formatCompactCostRange(analysis.totalEstimatedTokens, options.pricingProfiles)
-        : null;
-    const fixLine = formatCompactFixLine(buildSuggestions(analysis));
-    const quoteLines = [
-        `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)} · **+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens**`,
-        '',
-    ];
-    if (findingsLine) {
-        quoteLines.push(findingsLine, '');
-    }
-    const detailLines = [];
-    if (costLine) {
-        detailLines.push(`${costLine}  `);
-    }
-    if (fixLine) {
-        detailLines.push(`**Fix:** ${fixLine}`);
-    }
-    if (detailLines.length > 0) {
-        quoteLines.push(...detailLines, '');
-    }
-    quoteLines.push('<sub>Estimated context risk only. Agents may not read every changed file.</sub>');
-    return [exports.COMMENT_MARKER, blockquote(quoteLines)].join('\n');
-}
-function formatContextTable(analysis, maxItems) {
-    const rows = getFindings(analysis, maxItems);
-    const tableHeader = ['| Added | Finding |', '|---:|---|'];
-    if (rows.length === 0) {
-        return 'No added context detected in this PR diff.';
-    }
-    const tableRows = rows.map((file) => `| **+${formatCompactTokens(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`);
-    return [...tableHeader, ...tableRows].join('\n');
-}
-function formatPricingCostSection(totalEstimatedTokens, pricingProfiles) {
-    const rows = pricingProfiles.map((profile) => {
-        const cost = (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, profile.inputCostPerMillion);
-        return `| ${escapeMarkdownTableCell(profile.name)} | ${formatCostRange(cost)}/session |`;
-    });
-    return [
-        '**Estimated worst-case input cost if read by an agent**',
-        '_Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included._',
-        '',
-        '| Pricing profile | Est. input cost (±50%) |',
-        '|---|---:|',
-        ...rows,
-    ].join('\n');
-}
-function formatComment(analysis, options) {
-    if (options.commentFormat === 'compact') {
-        return formatCompactComment(analysis, options);
-    }
-    return formatDefaultComment(analysis, options);
-}
-function formatDefaultComment(analysis, options) {
-    const severityThresholds = resolveSeverityThresholds(options);
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
-    const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
-    const suggestions = buildSuggestions(analysis);
-    const suggestionLines = suggestions.length > 0
-        ? suggestions.map((s) => `- ${s}`).join('\n')
-        : '- No specific suggestions — diff looks context-light.';
-    const sections = [
-        '🤖 **ContextLevy**',
-        '',
-        `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
-        '',
-        `**Risk level:** ${formatRiskLevel(riskLevel)}`,
-        '',
-        formatContextTable(analysis, options.maxHighImpactItems),
-    ];
-    if (options.showCostTable && options.pricingProfiles.length > 0) {
-        sections.push('', formatPricingCostSection(analysis.totalEstimatedTokens, options.pricingProfiles));
-    }
-    sections.push('', '**Suggestions**', suggestionLines, '', '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._', '', '_ContextLevy runs locally in CI and does not send code to an external API._', '', exports.COMMENT_MARKER);
-    return sections.join('\n');
-}
-
-
-/***/ }),
-
-/***/ 2973:
+/***/ 1036:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_CONFIG_PATHS = void 0;
-exports.parseCommentFormat = parseCommentFormat;
-exports.parsePricingProfilesValue = parsePricingProfilesValue;
-exports.parseEstimationMode = parseEstimationMode;
-exports.parseCustomRulesValue = parseCustomRulesValue;
-exports.parseSeverityThresholdsValue = parseSeverityThresholdsValue;
-exports.parseConfigContents = parseConfigContents;
 exports.resolveConfigPath = resolveConfigPath;
 exports.loadConfigFile = loadConfigFile;
 exports.loadConfigFromRepository = loadConfigFromRepository;
 const node_fs_1 = __nccwpck_require__(3024);
 const node_path_1 = __nccwpck_require__(6760);
-const yaml_1 = __nccwpck_require__(8815);
-const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'];
-const CONTEXT_CATEGORIES = [
-    'generated',
-    'coverage',
-    'lockfile',
-    'build-output',
-    'log',
-    'snapshot',
-    'agent-config',
-    'minified',
-    'vendor',
-    'source-map',
-    'protobuf',
-    'openapi',
-    'dependency-dir',
-    'cache-dir',
-    'test-output',
-    'fixture',
-    'binary-asset',
-    'large-file',
-    'other',
-];
-const ESTIMATION_MODES = ['simple', 'tokenizer'];
+const parse_1 = __nccwpck_require__(8353);
 exports.DEFAULT_CONFIG_PATHS = [
     '.contextlevy.yml',
     '.contextlevy.yaml',
@@ -36131,6 +35564,55 @@ exports.DEFAULT_CONFIG_PATHS = [
     'contextlevy.yaml',
     'contextlevy.json',
 ];
+function resolveConfigPath(workspaceRoot) {
+    for (const candidate of exports.DEFAULT_CONFIG_PATHS) {
+        const resolved = (0, node_path_1.join)(workspaceRoot, candidate);
+        if ((0, node_fs_1.existsSync)(resolved)) {
+            return resolved;
+        }
+    }
+    return null;
+}
+function loadConfigFile(workspaceRoot) {
+    const resolvedPath = resolveConfigPath(workspaceRoot);
+    if (!resolvedPath) {
+        return null;
+    }
+    const contents = (0, node_fs_1.readFileSync)(resolvedPath, 'utf8');
+    return (0, parse_1.parseConfigContents)(contents, resolvedPath);
+}
+async function loadConfigFromRepository(readConfig, ref) {
+    for (const candidate of exports.DEFAULT_CONFIG_PATHS) {
+        const contents = await readConfig(candidate, ref);
+        if (contents !== null) {
+            return (0, parse_1.parseConfigContents)(contents, `${candidate}@${ref}`);
+        }
+    }
+    return null;
+}
+
+
+/***/ }),
+
+/***/ 8353:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseCommentFormat = parseCommentFormat;
+exports.parsePricingProfilesValue = parsePricingProfilesValue;
+exports.parsePricingProfiles = parsePricingProfiles;
+exports.parseEstimationMode = parseEstimationMode;
+exports.parseCustomRulesValue = parseCustomRulesValue;
+exports.parseSeverityThresholdsValue = parseSeverityThresholdsValue;
+exports.normalizeConfig = normalizeConfig;
+exports.parseConfigContents = parseConfigContents;
+const yaml_1 = __nccwpck_require__(8815);
+const pricing_1 = __nccwpck_require__(7577);
+const types_1 = __nccwpck_require__(3054);
+const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'];
+const ESTIMATION_MODES = ['simple', 'tokenizer'];
 function readConfigValue(record, camelKey, kebabKey) {
     if (record[camelKey] !== undefined) {
         return record[camelKey];
@@ -36249,12 +35731,26 @@ function parsePricingProfilesValue(value) {
         };
     });
 }
+function parsePricingProfiles(input) {
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return pricing_1.DEFAULT_PRICING_PROFILES;
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(trimmed);
+    }
+    catch {
+        throw new Error('pricing-profiles must be valid JSON.');
+    }
+    return parsePricingProfilesValue(parsed);
+}
 function parseContextCategory(value, fieldName) {
     if (typeof value !== 'string') {
         throw new Error(`${fieldName} must be a supported context category.`);
     }
     const normalized = value.trim().toLowerCase();
-    if (!CONTEXT_CATEGORIES.includes(normalized)) {
+    if (!types_1.CONTEXT_CATEGORIES.includes(normalized)) {
         throw new Error(`${fieldName} must be a supported context category.`);
     }
     return normalized;
@@ -36396,45 +35892,162 @@ function parseConfigContents(contents, sourcePath) {
     }
     return normalizeConfig(parsed, sourcePath);
 }
-function resolveConfigPath(workspaceRoot) {
-    for (const candidate of exports.DEFAULT_CONFIG_PATHS) {
-        const resolved = (0, node_path_1.join)(workspaceRoot, candidate);
-        if ((0, node_fs_1.existsSync)(resolved)) {
-            return resolved;
-        }
-    }
-    return null;
+
+
+/***/ }),
+
+/***/ 4661:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_SEVERITY_THRESHOLDS = void 0;
+exports.resolveSeverityThresholds = resolveSeverityThresholds;
+exports.resolveSettings = resolveSettings;
+const defaults_1 = __nccwpck_require__(5553);
+Object.defineProperty(exports, "DEFAULT_SEVERITY_THRESHOLDS", ({ enumerable: true, get: function () { return defaults_1.DEFAULT_SEVERITY_THRESHOLDS; } }));
+const pricing_1 = __nccwpck_require__(7577);
+const DEFAULTS = {
+    tokenThreshold: 1000,
+    largeFileTokenThreshold: 5000,
+    maxHighImpactItems: 5,
+    showCostTable: true,
+    pricingProfiles: pricing_1.DEFAULT_PRICING_PROFILES,
+    commentFormat: 'default',
+    ignorePaths: [],
+    allowPaths: [],
+    estimationMode: 'simple',
+    customRules: [],
+    severityThresholds: defaults_1.DEFAULT_SEVERITY_THRESHOLDS,
+};
+function resolveSeverityThresholds(partial) {
+    return {
+        mediumTokens: partial?.mediumTokens ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.mediumTokens,
+        highTokens: partial?.highTokens ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.highTokens,
+        criticalTokens: partial?.criticalTokens ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.criticalTokens,
+        mediumHighImpactCount: partial?.mediumHighImpactCount ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.mediumHighImpactCount,
+        highHighImpactCount: partial?.highHighImpactCount ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.highHighImpactCount,
+        criticalHighImpactCount: partial?.criticalHighImpactCount ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.criticalHighImpactCount,
+    };
 }
-function loadConfigFile(workspaceRoot) {
-    const resolvedPath = resolveConfigPath(workspaceRoot);
-    if (!resolvedPath) {
-        return null;
-    }
-    const contents = (0, node_fs_1.readFileSync)(resolvedPath, 'utf8');
-    return parseConfigContents(contents, resolvedPath);
-}
-async function loadConfigFromRepository(readConfig, ref) {
-    for (const candidate of exports.DEFAULT_CONFIG_PATHS) {
-        const contents = await readConfig(candidate, ref);
-        if (contents !== null) {
-            return parseConfigContents(contents, `${candidate}@${ref}`);
-        }
-    }
-    return null;
+function resolveSettings(config) {
+    return {
+        tokenThreshold: config?.tokenThreshold ?? DEFAULTS.tokenThreshold,
+        largeFileTokenThreshold: config?.largeFileTokenThreshold ?? DEFAULTS.largeFileTokenThreshold,
+        maxHighImpactItems: config?.maxHighImpactItems ?? DEFAULTS.maxHighImpactItems,
+        showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
+        pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
+        commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
+        ignorePaths: config?.ignorePaths ?? DEFAULTS.ignorePaths,
+        allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
+        failOnSeverity: config?.failOnSeverity,
+        failAboveTokens: config?.failAboveTokens,
+        estimationMode: config?.estimationMode ?? DEFAULTS.estimationMode,
+        customRules: config?.customRules ?? DEFAULTS.customRules,
+        severityThresholds: resolveSeverityThresholds(config?.severityThresholds),
+    };
 }
 
 
 /***/ }),
 
-/***/ 6971:
+/***/ 3127:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.analyzePullRequestFiles = analyzePullRequestFiles;
+exports.getHighImpactFiles = getHighImpactFiles;
+const paths_1 = __nccwpck_require__(6107);
+const rules_1 = __nccwpck_require__(1688);
+const tokens_1 = __nccwpck_require__(1129);
+function uniqueSuggestions(values) {
+    const seen = new Set();
+    const out = [];
+    for (const value of values) {
+        if (!value || seen.has(value)) {
+            continue;
+        }
+        seen.add(value);
+        out.push(value);
+    }
+    return out;
+}
+function analyzePullRequestFiles(files, options) {
+    const analyzed = [];
+    for (const file of files) {
+        if (file.status === 'removed') {
+            continue;
+        }
+        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.ignorePaths)) {
+            continue;
+        }
+        const fromPatch = (0, tokens_1.estimateTokensFromPatch)(file.patch, options.estimationMode);
+        const estimatedTokens = fromPatch > 0 || file.patch ? fromPatch : (0, tokens_1.estimateTokensFromAdditions)(file.additions);
+        if (estimatedTokens <= 0) {
+            continue;
+        }
+        let rule = (0, rules_1.classifyPath)(file.filename, options.customRules);
+        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.allowPaths)) {
+            rule = rules_1.DEFAULT_MATCH;
+        }
+        if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
+            rule = (0, rules_1.largeFileMatch)();
+        }
+        analyzed.push({
+            filename: file.filename,
+            status: file.status,
+            estimatedTokens,
+            category: rule.category,
+            label: rule.label,
+            suggestion: rule.suggestion,
+        });
+    }
+    analyzed.sort((a, b) => b.estimatedTokens - a.estimatedTokens);
+    const totalEstimatedTokens = analyzed.reduce((sum, file) => sum + file.estimatedTokens, 0);
+    return {
+        totalEstimatedTokens,
+        files: analyzed,
+        suggestions: uniqueSuggestions(analyzed.map((file) => file.suggestion)),
+    };
+}
+function getHighImpactFiles(analysis, maxItems) {
+    return analysis.files.filter((file) => file.category !== 'other').slice(0, maxItems);
+}
+
+
+/***/ }),
+
+/***/ 5553:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_SEVERITY_THRESHOLDS = void 0;
+exports.DEFAULT_SEVERITY_THRESHOLDS = {
+    mediumTokens: 5_000,
+    highTokens: 20_000,
+    criticalTokens: 100_000,
+    mediumHighImpactCount: 1,
+    highHighImpactCount: 3,
+    criticalHighImpactCount: 8,
+};
+
+
+/***/ }),
+
+/***/ 5719:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.shouldFailRun = shouldFailRun;
-const analyze_1 = __nccwpck_require__(2475);
-const comment_1 = __nccwpck_require__(2246);
+const analyze_1 = __nccwpck_require__(3127);
+const severity_1 = __nccwpck_require__(432);
 function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
     if (settings.failAboveTokens !== undefined) {
         if (analysis.totalEstimatedTokens > settings.failAboveTokens) {
@@ -36446,8 +36059,8 @@ function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
     }
     if (settings.failOnSeverity !== undefined) {
         const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, maxHighImpactItems);
-        const riskLevel = (0, comment_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
-        if ((0, comment_1.severityMeetsThreshold)(riskLevel, settings.failOnSeverity)) {
+        const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
+        if ((0, severity_1.severityMeetsThreshold)(riskLevel, settings.failOnSeverity)) {
             return {
                 fail: true,
                 reason: `Context risk level (${riskLevel}) meets or exceeds fail-on-severity (${settings.failOnSeverity}).`,
@@ -36460,282 +36073,7 @@ function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
 
 /***/ }),
 
-/***/ 9407:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.upsertComment = upsertComment;
-exports.run = run;
-const core = __importStar(__nccwpck_require__(7484));
-const github = __importStar(__nccwpck_require__(3228));
-const auth_1 = __nccwpck_require__(9081);
-const analyze_1 = __nccwpck_require__(2475);
-const comment_1 = __nccwpck_require__(2246);
-const fail_1 = __nccwpck_require__(6971);
-const config_1 = __nccwpck_require__(2973);
-const settings_1 = __nccwpck_require__(8750);
-const summary_1 = __nccwpck_require__(8855);
-async function listAllPullRequestFiles(octokit, owner, repo, pullNumber) {
-    const files = [];
-    for await (const response of octokit.paginate.iterator(octokit.rest.pulls.listFiles, {
-        owner,
-        repo,
-        pull_number: pullNumber,
-        per_page: 100,
-    })) {
-        for (const file of response.data) {
-            files.push({
-                filename: file.filename,
-                status: file.status,
-                additions: file.additions,
-                deletions: file.deletions,
-                changes: file.changes,
-                patch: file.patch,
-            });
-        }
-    }
-    return files;
-}
-function isCommentAccessError(error) {
-    if (typeof error !== 'object' || error === null) {
-        return false;
-    }
-    const candidate = error;
-    return (candidate.status === 403 ||
-        Boolean(candidate.message?.includes('Resource not accessible by integration')));
-}
-function isRepositoryContentNotFound(error) {
-    return (typeof error === 'object' &&
-        error !== null &&
-        error.status === 404);
-}
-async function loadBaseConfig(octokit, owner, repo, ref) {
-    return (0, config_1.loadConfigFromRepository)(async (path, candidateRef) => {
-        try {
-            const response = await octokit.rest.repos.getContent({
-                owner,
-                repo,
-                path,
-                ref: candidateRef,
-            });
-            if (Array.isArray(response.data) ||
-                response.data.type !== 'file' ||
-                !('content' in response.data)) {
-                return null;
-            }
-            return Buffer.from(response.data.content, response.data.encoding).toString('utf8');
-        }
-        catch (error) {
-            if (isRepositoryContentNotFound(error)) {
-                return null;
-            }
-            throw error;
-        }
-    }, ref);
-}
-async function findContextLevyComment(octokit, owner, repo, issueNumber, options = {}) {
-    for await (const response of octokit.paginate.iterator(octokit.rest.issues.listComments, {
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: 100,
-    })) {
-        for (const comment of response.data) {
-            const isExpectedAuthor = options.botLogin ? comment.user?.login === options.botLogin : true;
-            if (isExpectedAuthor && comment.body?.includes(comment_1.COMMENT_MARKER)) {
-                return { id: comment.id };
-            }
-        }
-    }
-    return undefined;
-}
-async function upsertComment(octokit, owner, repo, issueNumber, body, options = {}) {
-    const existing = await findContextLevyComment(octokit, owner, repo, issueNumber, options);
-    if (existing) {
-        try {
-            await octokit.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body,
-            });
-            core.info(`Updated ContextLevy comment (${existing.id}).`);
-            return true;
-        }
-        catch (error) {
-            if (!isCommentAccessError(error)) {
-                throw error;
-            }
-            core.info(`Cannot update existing ContextLevy comment (${existing.id}) with the current token; creating a new comment.`);
-        }
-    }
-    try {
-        await octokit.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: issueNumber,
-            body,
-        });
-        core.info('Created ContextLevy comment.');
-        return true;
-    }
-    catch (error) {
-        if (!isCommentAccessError(error)) {
-            throw error;
-        }
-        core.warning('ContextLevy could not create a PR comment with the current token. Analysis outputs were still set.');
-        return false;
-    }
-}
-async function getAuthenticatedLogin(octokit) {
-    try {
-        const response = await octokit.rest.users.getAuthenticated();
-        return response.data.login;
-    }
-    catch (error) {
-        core.info(`Could not resolve authenticated GitHub login for comment ownership checks: ${error instanceof Error ? error.message : String(error)}`);
-        return undefined;
-    }
-}
-async function run() {
-    const context = github.context;
-    if (!context.payload.pull_request) {
-        core.info('Not a pull_request event — skipping.');
-        return;
-    }
-    const pullNumber = context.payload.pull_request.number;
-    const { owner, repo } = context.repo;
-    const { token, source } = await (0, auth_1.resolveGithubToken)(owner, repo);
-    core.setOutput('token-source', source);
-    const octokit = github.getOctokit(token);
-    const baseSha = context.payload.pull_request.base?.sha;
-    const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
-    let config = null;
-    if (baseSha) {
-        config = await loadBaseConfig(octokit, owner, repo, baseSha);
-        if (config) {
-            core.info(`Loaded ContextLevy config from base ref ${baseSha}.`);
-        }
-    }
-    if (!config && !baseSha) {
-        config = (0, config_1.loadConfigFile)(workspaceRoot);
-        if (config) {
-            core.info('Loaded ContextLevy config from workspace.');
-        }
-    }
-    if (!config) {
-        core.info('No ContextLevy config file found — using defaults.');
-    }
-    const settings = (0, settings_1.resolveSettings)(config);
-    core.info(`Analyzing PR #${pullNumber} in ${owner}/${repo}`);
-    const files = await listAllPullRequestFiles(octokit, owner, repo, pullNumber);
-    const analysis = (0, analyze_1.analyzePullRequestFiles)(files, {
-        largeFileTokenThreshold: settings.largeFileTokenThreshold,
-        ignorePaths: settings.ignorePaths,
-        allowPaths: settings.allowPaths,
-        estimationMode: settings.estimationMode,
-        customRules: settings.customRules,
-    });
-    core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
-    core.setOutput('analyzed-file-count', String(analysis.files.length));
-    core.setOutput('estimation-mode', settings.estimationMode);
-    const failDecision = (0, fail_1.shouldFailRun)(analysis, {
-        failOnSeverity: settings.failOnSeverity,
-        failAboveTokens: settings.failAboveTokens,
-        severityThresholds: settings.severityThresholds,
-    }, settings.maxHighImpactItems);
-    await (0, summary_1.writeJobSummary)(analysis, settings, failDecision);
-    if (failDecision.fail) {
-        core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
-    }
-    if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
-        core.info(`Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`);
-        return;
-    }
-    const body = (0, comment_1.formatComment)(analysis, {
-        maxHighImpactItems: settings.maxHighImpactItems,
-        showCostTable: settings.showCostTable,
-        pricingProfiles: settings.pricingProfiles,
-        commentFormat: settings.commentFormat,
-        severityThresholds: settings.severityThresholds,
-    });
-    const botLogin = await getAuthenticatedLogin(octokit);
-    try {
-        const posted = await upsertComment(octokit, owner, repo, pullNumber, body, { botLogin });
-        if (posted) {
-            return;
-        }
-        if (source !== 'app') {
-            return;
-        }
-    }
-    catch (error) {
-        if (source !== 'app' || !isCommentAccessError(error)) {
-            throw error;
-        }
-    }
-    const fallbackToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
-    if (!fallbackToken || fallbackToken === token) {
-        core.warning('ContextLevy GitHub App token could not write PR comments, and no distinct GITHUB_TOKEN fallback was available.');
-        return;
-    }
-    core.warning('ContextLevy GitHub App token could not write PR comments; retrying comment upsert with GITHUB_TOKEN.');
-    core.setOutput('token-source', 'GITHUB_TOKEN');
-    const fallbackOctokit = github.getOctokit(fallbackToken);
-    await upsertComment(fallbackOctokit, owner, repo, pullNumber, body, {
-        botLogin: await getAuthenticatedLogin(fallbackOctokit),
-    });
-}
-if (require.main === require.cache[eval('__filename')]) {
-    run().catch((error) => {
-        if (error instanceof Error) {
-            core.setFailed(error.message);
-        }
-        else {
-            core.setFailed(String(error));
-        }
-    });
-}
-
-
-/***/ }),
-
-/***/ 6275:
+/***/ 4615:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -36744,7 +36082,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.INDEXABLE_CATEGORIES = void 0;
 exports.getIndexablePaths = getIndexablePaths;
 exports.formatIndexingSuggestion = formatIndexingSuggestion;
-const rules_1 = __nccwpck_require__(9244);
+const rules_1 = __nccwpck_require__(1688);
 exports.INDEXABLE_CATEGORIES = new Set([
     'generated',
     'coverage',
@@ -36812,7 +36150,7 @@ function formatIndexingSuggestion(paths) {
 
 /***/ }),
 
-/***/ 8431:
+/***/ 6107:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -36857,36 +36195,20 @@ function matchesAnyPathPattern(filename, patterns) {
 
 /***/ }),
 
-/***/ 4309:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ 7577:
+/***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_PRICING_PROFILES = void 0;
-exports.parsePricingProfiles = parsePricingProfiles;
 exports.estimateSessionCost = estimateSessionCost;
-const config_1 = __nccwpck_require__(2973);
 exports.DEFAULT_PRICING_PROFILES = [
     { name: 'GPT-5.5', inputCostPerMillion: 5.0 },
     { name: 'Opus 4.7', inputCostPerMillion: 5.0 },
     { name: 'Gemini 3.1 Pro', inputCostPerMillion: 2.0 },
     { name: 'Kimi K2.6', inputCostPerMillion: 0.95 },
 ];
-function parsePricingProfiles(input) {
-    const trimmed = input.trim();
-    if (!trimmed) {
-        return exports.DEFAULT_PRICING_PROFILES;
-    }
-    let parsed;
-    try {
-        parsed = JSON.parse(trimmed);
-    }
-    catch {
-        throw new Error('pricing-profiles must be valid JSON.');
-    }
-    return (0, config_1.parsePricingProfilesValue)(parsed);
-}
 function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
     return (estimatedTokens / 1_000_000) * inputCostPerMillion;
 }
@@ -36894,7 +36216,7 @@ function estimateSessionCost(estimatedTokens, inputCostPerMillion) {
 
 /***/ }),
 
-/***/ 9244:
+/***/ 1688:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -36903,7 +36225,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_MATCH = void 0;
 exports.classifyPath = classifyPath;
 exports.largeFileMatch = largeFileMatch;
-const paths_1 = __nccwpck_require__(8431);
+const paths_1 = __nccwpck_require__(6107);
 function basename(filename) {
     const parts = filename.split('/');
     return parts[parts.length - 1] ?? filename;
@@ -36949,9 +36271,7 @@ const RULES = [
         },
     },
     {
-        test: (f) => segmentIncludes(f, 'coverage') ||
-            /\.(lcov|coverage|cov)$/i.test(f) ||
-            /lcov\.info$/i.test(f),
+        test: (f) => segmentIncludes(f, 'coverage') || /\.(lcov|coverage|cov)$/i.test(f) || /lcov\.info$/i.test(f),
         match: {
             category: 'coverage',
             label: 'Coverage output is usually noisy and should not be committed.',
@@ -37026,8 +36346,7 @@ const RULES = [
         },
     },
     {
-        test: (f) => /(?:^|\/)fixtures?(?:\/|$)/i.test(f) &&
-            /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
+        test: (f) => /(?:^|\/)fixtures?(?:\/|$)/i.test(f) && /\.(?:json|csv|xml|yaml|yml|txt|ndjson)$/i.test(f),
         match: {
             category: 'fixture',
             label: 'Large fixture files can dominate agent context.',
@@ -37102,147 +36421,55 @@ function largeFileMatch() {
 
 /***/ }),
 
-/***/ 8750:
+/***/ 432:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_SEVERITY_THRESHOLDS = void 0;
-exports.resolveSeverityThresholds = resolveSeverityThresholds;
-exports.resolveSettings = resolveSettings;
-const pricing_1 = __nccwpck_require__(4309);
-exports.DEFAULT_SEVERITY_THRESHOLDS = {
-    mediumTokens: 5_000,
-    highTokens: 20_000,
-    criticalTokens: 100_000,
-    mediumHighImpactCount: 1,
-    highHighImpactCount: 3,
-    criticalHighImpactCount: 8,
+exports.RISK_LEVEL_EMOJI = void 0;
+exports.severityMeetsThreshold = severityMeetsThreshold;
+exports.getRiskLevel = getRiskLevel;
+exports.formatRiskLevel = formatRiskLevel;
+const defaults_1 = __nccwpck_require__(5553);
+const SEVERITY_RANK = {
+    Low: 0,
+    Medium: 1,
+    High: 2,
+    Critical: 3,
 };
-const DEFAULTS = {
-    tokenThreshold: 1000,
-    largeFileTokenThreshold: 5000,
-    maxHighImpactItems: 5,
-    showCostTable: true,
-    pricingProfiles: pricing_1.DEFAULT_PRICING_PROFILES,
-    commentFormat: 'default',
-    ignorePaths: [],
-    allowPaths: [],
-    estimationMode: 'simple',
-    customRules: [],
-    severityThresholds: exports.DEFAULT_SEVERITY_THRESHOLDS,
+exports.RISK_LEVEL_EMOJI = {
+    Low: '🟢',
+    Medium: '🟡',
+    High: '🔴',
+    Critical: '⛔',
 };
-function resolveSeverityThresholds(partial) {
-    return {
-        mediumTokens: partial?.mediumTokens ?? exports.DEFAULT_SEVERITY_THRESHOLDS.mediumTokens,
-        highTokens: partial?.highTokens ?? exports.DEFAULT_SEVERITY_THRESHOLDS.highTokens,
-        criticalTokens: partial?.criticalTokens ?? exports.DEFAULT_SEVERITY_THRESHOLDS.criticalTokens,
-        mediumHighImpactCount: partial?.mediumHighImpactCount ?? exports.DEFAULT_SEVERITY_THRESHOLDS.mediumHighImpactCount,
-        highHighImpactCount: partial?.highHighImpactCount ?? exports.DEFAULT_SEVERITY_THRESHOLDS.highHighImpactCount,
-        criticalHighImpactCount: partial?.criticalHighImpactCount ?? exports.DEFAULT_SEVERITY_THRESHOLDS.criticalHighImpactCount,
-    };
+function severityMeetsThreshold(actual, threshold) {
+    const thresholdRank = threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
+    return SEVERITY_RANK[actual] >= thresholdRank;
 }
-function resolveSettings(config) {
-    return {
-        tokenThreshold: config?.tokenThreshold ?? DEFAULTS.tokenThreshold,
-        largeFileTokenThreshold: config?.largeFileTokenThreshold ?? DEFAULTS.largeFileTokenThreshold,
-        maxHighImpactItems: config?.maxHighImpactItems ?? DEFAULTS.maxHighImpactItems,
-        showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
-        pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
-        commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
-        ignorePaths: config?.ignorePaths ?? DEFAULTS.ignorePaths,
-        allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
-        failOnSeverity: config?.failOnSeverity,
-        failAboveTokens: config?.failAboveTokens,
-        estimationMode: config?.estimationMode ?? DEFAULTS.estimationMode,
-        customRules: config?.customRules ?? DEFAULTS.customRules,
-        severityThresholds: resolveSeverityThresholds(config?.severityThresholds),
-    };
+function getRiskLevel(totalTokens, highImpactCount, thresholds = defaults_1.DEFAULT_SEVERITY_THRESHOLDS) {
+    if (totalTokens >= thresholds.criticalTokens ||
+        highImpactCount >= thresholds.criticalHighImpactCount) {
+        return 'Critical';
+    }
+    if (totalTokens >= thresholds.highTokens || highImpactCount >= thresholds.highHighImpactCount) {
+        return 'High';
+    }
+    if (totalTokens >= thresholds.mediumTokens ||
+        highImpactCount >= thresholds.mediumHighImpactCount) {
+        return 'Medium';
+    }
+    return 'Low';
+}
+function formatRiskLevel(riskLevel) {
+    return `${exports.RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
 }
 
 
 /***/ }),
 
-/***/ 8855:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.writeJobSummary = writeJobSummary;
-const core = __importStar(__nccwpck_require__(7484));
-const analyze_1 = __nccwpck_require__(2475);
-const comment_1 = __nccwpck_require__(2246);
-async function writeJobSummary(analysis, settings, failDecision) {
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, settings.maxHighImpactItems);
-    const riskLevel = (0, comment_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
-    const summary = core.summary
-        .addHeading('ContextLevy')
-        .addRaw(`Estimated **+${(0, comment_1.formatCompactTokens)(analysis.totalEstimatedTokens)}** net-new context tokens across **${analysis.files.length}** analyzed file(s).`)
-        .addEOL()
-        .addRaw(`**Risk level:** ${(0, comment_1.formatRiskLevel)(riskLevel)}`)
-        .addEOL()
-        .addRaw(`**Estimation mode:** \`${settings.estimationMode}\``)
-        .addEOL();
-    if (highImpact.length > 0) {
-        summary.addHeading('Top findings', 3);
-        summary.addTable([
-            [
-                { data: 'File', header: true },
-                { data: 'Added tokens', header: true },
-                { data: 'Category', header: true },
-            ],
-            ...highImpact.map((file) => [
-                file.filename,
-                `+${(0, comment_1.formatCompactTokens)(file.estimatedTokens)}`,
-                file.category,
-            ]),
-        ]);
-    }
-    if (failDecision.fail) {
-        summary.addEOL().addRaw(`**Workflow failed:** ${failDecision.reason ?? 'Threshold exceeded.'}`);
-    }
-    await summary.write();
-}
-
-
-/***/ }),
-
-/***/ 7789:
+/***/ 1129:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -37307,6 +36534,951 @@ function estimateTokensFromPatch(patch, mode = 'simple') {
 }
 function estimateTokensFromAdditions(additions) {
     return additions * TOKENS_PER_ADDED_LINE_FALLBACK;
+}
+
+
+/***/ }),
+
+/***/ 3054:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CONTEXT_CATEGORIES = void 0;
+exports.CONTEXT_CATEGORIES = [
+    'generated',
+    'coverage',
+    'lockfile',
+    'build-output',
+    'log',
+    'snapshot',
+    'agent-config',
+    'minified',
+    'vendor',
+    'source-map',
+    'protobuf',
+    'openapi',
+    'dependency-dir',
+    'cache-dir',
+    'test-output',
+    'fixture',
+    'binary-asset',
+    'large-file',
+    'other',
+];
+
+
+/***/ }),
+
+/***/ 5758:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.COMMENT_MARKER = void 0;
+exports.buildSuggestions = buildSuggestions;
+exports.formatPricingCostSection = formatPricingCostSection;
+exports.formatComment = formatComment;
+const analyze_1 = __nccwpck_require__(3127);
+const indexing_1 = __nccwpck_require__(4615);
+const pricing_1 = __nccwpck_require__(7577);
+const severity_1 = __nccwpck_require__(432);
+const shared_1 = __nccwpck_require__(9830);
+exports.COMMENT_MARKER = '<!-- contextlevy -->';
+const COMPACT_RISK_LEVEL_EMOJI = {
+    ...severity_1.RISK_LEVEL_EMOJI,
+    Critical: '🔴',
+};
+function formatCompactRiskLevel(riskLevel) {
+    return `${COMPACT_RISK_LEVEL_EMOJI[riskLevel]} **${riskLevel}**`;
+}
+function blockquote(lines) {
+    return lines.map((line) => (line.length === 0 ? '>' : `> ${line}`)).join('\n');
+}
+function escapeHtml(value) {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeMarkdownTableCell(value) {
+    return escapeHtml(value)
+        .replace(/\\/g, '\\\\')
+        .replace(/\|/g, '\\|')
+        .replace(/`/g, '\\`')
+        .replace(/\r?\n/g, ' ');
+}
+function formatInlineCodeInTable(value) {
+    return `\`${escapeMarkdownTableCell(value)}\``;
+}
+function shouldSuggestIndexing(analysis) {
+    return analysis.files.some((file) => indexing_1.INDEXABLE_CATEGORIES.has(file.category));
+}
+function normalizeSuggestion(suggestion) {
+    if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
+        return 'Add `coverage/` to `.gitignore`.';
+    }
+    if (/do not commit generated output unless required/i.test(suggestion)) {
+        return 'Avoid committing generated output unless required.';
+    }
+    if (/keep build output out of version control/i.test(suggestion)) {
+        return 'Keep build output out of version control.';
+    }
+    if (/add \*\.log and logs\/ to \.gitignore/i.test(suggestion)) {
+        return 'Add `*.log` and `logs/` to `.gitignore`.';
+    }
+    return suggestion;
+}
+function buildSuggestions(analysis) {
+    const seen = new Set();
+    const suggestions = [];
+    for (const suggestion of analysis.suggestions) {
+        const normalized = normalizeSuggestion(suggestion);
+        if (!seen.has(normalized)) {
+            seen.add(normalized);
+            suggestions.push(normalized);
+        }
+    }
+    if (shouldSuggestIndexing(analysis)) {
+        const indexingSuggestion = (0, indexing_1.formatIndexingSuggestion)((0, indexing_1.getIndexablePaths)(analysis.files));
+        if (indexingSuggestion && !seen.has(indexingSuggestion)) {
+            seen.add(indexingSuggestion);
+            suggestions.push(indexingSuggestion);
+        }
+    }
+    return suggestions;
+}
+function formatFindingCell(filename, label) {
+    return `${formatInlineCodeInTable(filename)}<br/>${escapeMarkdownTableCell(label)}`;
+}
+function formatShortPath(filename) {
+    const parts = filename.split('/');
+    if (parts.length <= 2) {
+        return filename;
+    }
+    return parts.slice(-2).join('/');
+}
+function getFindings(analysis, maxItems) {
+    const rows = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
+    if (rows.length > 0) {
+        return rows;
+    }
+    return analysis.files.slice(0, maxItems);
+}
+function formatCompactFindings(files, maxItems) {
+    const limit = Math.min(maxItems, shared_1.COMPACT_MAX_FINDINGS);
+    const shown = files.slice(0, limit);
+    if (shown.length === 0) {
+        return null;
+    }
+    const parts = shown.map((file) => `\`${escapeMarkdownTableCell(formatShortPath(file.filename))}\` **+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)}**`);
+    const remaining = files.length - shown.length;
+    if (remaining > 0) {
+        parts.push(`**+${remaining} more**`);
+    }
+    return parts.join(' · ');
+}
+function formatCompactFixSuggestion(suggestion) {
+    if (/keep build output out of version control/i.test(suggestion)) {
+        return 'remove build output';
+    }
+    if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add `coverage/` to `.gitignore`';
+    }
+    if (/avoid committing generated output unless required/i.test(suggestion)) {
+        return 'avoid generated output';
+    }
+    if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add logs to `.gitignore`';
+    }
+    if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
+        return 'exclude artifacts from agent indexing';
+    }
+    return suggestion.replace(/\.$/, '');
+}
+function formatCompactFixLine(suggestions) {
+    if (suggestions.length === 0) {
+        return null;
+    }
+    return suggestions
+        .slice(0, shared_1.COMPACT_MAX_SUGGESTIONS)
+        .map((suggestion) => formatCompactFixSuggestion(suggestion))
+        .join(' · ');
+}
+function formatCompactCostRange(totalEstimatedTokens, pricingProfiles) {
+    if (pricingProfiles.length === 0) {
+        return null;
+    }
+    const costs = pricingProfiles.map((profile) => (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, profile.inputCostPerMillion));
+    const min = Math.min(...costs);
+    const max = Math.max(...costs);
+    if (min === max) {
+        return `**Worst-case input cost:** ~${(0, shared_1.formatUsd)(min)}/session`;
+    }
+    return `**Worst-case input cost:** ~${(0, shared_1.formatUsd)(min)}–${(0, shared_1.formatUsd)(max)}/session`;
+}
+function formatCompactComment(analysis, options) {
+    const severityThresholds = (0, shared_1.resolveSeverityThresholds)(options);
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
+    const findings = getFindings(analysis, options.maxHighImpactItems);
+    const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
+    const costLine = options.showCostTable
+        ? formatCompactCostRange(analysis.totalEstimatedTokens, options.pricingProfiles)
+        : null;
+    const fixLine = formatCompactFixLine(buildSuggestions(analysis));
+    const quoteLines = [
+        `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)} · **+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated context tokens**`,
+        '',
+    ];
+    if (findingsLine) {
+        quoteLines.push(findingsLine, '');
+    }
+    const detailLines = [];
+    if (costLine) {
+        detailLines.push(`${costLine}  `);
+    }
+    if (fixLine) {
+        detailLines.push(`**Fix:** ${fixLine}`);
+    }
+    if (detailLines.length > 0) {
+        quoteLines.push(...detailLines, '');
+    }
+    quoteLines.push('<sub>Estimated context risk only. Agents may not read every changed file.</sub>');
+    return [exports.COMMENT_MARKER, blockquote(quoteLines)].join('\n');
+}
+function formatContextTable(analysis, maxItems) {
+    const rows = getFindings(analysis, maxItems);
+    const tableHeader = ['| Added | Finding |', '|---:|---|'];
+    if (rows.length === 0) {
+        return 'No added context detected in this PR diff.';
+    }
+    const tableRows = rows.map((file) => `| **+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)}** | ${formatFindingCell(file.filename, file.label)} |`);
+    return [...tableHeader, ...tableRows].join('\n');
+}
+function formatPricingCostSection(totalEstimatedTokens, pricingProfiles) {
+    const rows = pricingProfiles.map((profile) => {
+        const cost = (0, pricing_1.estimateSessionCost)(totalEstimatedTokens, profile.inputCostPerMillion);
+        return `| ${escapeMarkdownTableCell(profile.name)} | ${(0, shared_1.formatCostRange)(cost)}/session |`;
+    });
+    return [
+        '**Estimated worst-case input cost if read by an agent**',
+        '_Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included._',
+        '',
+        '| Pricing profile | Est. input cost (±50%) |',
+        '|---|---:|',
+        ...rows,
+    ].join('\n');
+}
+function formatComment(analysis, options) {
+    if (options.commentFormat === 'compact') {
+        return formatCompactComment(analysis, options);
+    }
+    return formatDefaultComment(analysis, options);
+}
+function formatDefaultComment(analysis, options) {
+    const severityThresholds = (0, shared_1.resolveSeverityThresholds)(options);
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
+    const suggestions = buildSuggestions(analysis);
+    const suggestionLines = suggestions.length > 0
+        ? suggestions.map((s) => `- ${s}`).join('\n')
+        : '- No specific suggestions — diff looks context-light.';
+    const sections = [
+        '🤖 **ContextLevy**',
+        '',
+        `This PR adds **~${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
+        '',
+        `**Risk level:** ${(0, severity_1.formatRiskLevel)(riskLevel)}`,
+        '',
+        formatContextTable(analysis, options.maxHighImpactItems),
+    ];
+    if (options.showCostTable && options.pricingProfiles.length > 0) {
+        sections.push('', formatPricingCostSection(analysis.totalEstimatedTokens, options.pricingProfiles));
+    }
+    sections.push('', '**Suggestions**', suggestionLines, '', '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._', '', '_ContextLevy runs locally in CI and does not send code to an external API._', '', exports.COMMENT_MARKER);
+    return sections.join('\n');
+}
+
+
+/***/ }),
+
+/***/ 9830:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.COMPACT_MAX_SUGGESTIONS = exports.COMPACT_MAX_FINDINGS = void 0;
+exports.formatCompactTokens = formatCompactTokens;
+exports.resolveSeverityThresholds = resolveSeverityThresholds;
+exports.formatCostRange = formatCostRange;
+exports.formatUsd = formatUsd;
+const defaults_1 = __nccwpck_require__(5553);
+exports.COMPACT_MAX_FINDINGS = 3;
+exports.COMPACT_MAX_SUGGESTIONS = 2;
+function formatCompactTokens(value) {
+    if (value >= 1000) {
+        return `${(value / 1000).toFixed(1)}k`;
+    }
+    return value.toLocaleString('en-US');
+}
+function resolveSeverityThresholds(options) {
+    return options.severityThresholds ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS;
+}
+function formatCostRange(cost) {
+    const low = cost * 0.5;
+    const high = cost * 1.5;
+    if (Math.abs(low - high) < 0.005) {
+        return `~${formatUsd(cost)}`;
+    }
+    return `~${formatUsd(low)}–${formatUsd(high)}`;
+}
+function formatUsd(value) {
+    return value.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+
+/***/ }),
+
+/***/ 4921:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.normalizePrivateKey = normalizePrivateKey;
+exports.readAppCredentials = readAppCredentials;
+exports.assertValidAppId = assertValidAppId;
+exports.createAppInstallationToken = createAppInstallationToken;
+exports.resolveGithubToken = resolveGithubToken;
+const core = __importStar(__nccwpck_require__(7484));
+const auth_app_1 = __nccwpck_require__(3833);
+const rest_1 = __nccwpck_require__(4325);
+function normalizePrivateKey(privateKey) {
+    let key = privateKey.trim();
+    if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+        key = key.slice(1, -1).trim();
+    }
+    key = key.replace(/\\n/g, '\n');
+    const beginMarker = key.match(/-----BEGIN [^-]+-----/)?.[0];
+    const endMarker = key.match(/-----END [^-]+-----/)?.[0];
+    if (beginMarker && endMarker && !key.includes('\n')) {
+        const body = key.slice(beginMarker.length, key.indexOf(endMarker)).replace(/\s/g, '');
+        const wrappedBody = body.match(/.{1,64}/g) ?? [body];
+        key = [beginMarker, ...wrappedBody, endMarker].join('\n');
+    }
+    if (beginMarker && !key.endsWith('\n')) {
+        key += '\n';
+    }
+    return key;
+}
+function readAppCredentials() {
+    const appId = core.getInput('app-client-id').trim() ||
+        process.env.CONTEXTLEVY_APP_ID?.trim() ||
+        process.env.CONTEXTLEVY_APP_CLIENT_ID?.trim() ||
+        '';
+    const privateKeyRaw = core.getInput('app-private-key').trim() ||
+        process.env.CONTEXTLEVY_APP_PRIVATE_KEY?.trim() ||
+        '';
+    if (!appId && !privateKeyRaw) {
+        return null;
+    }
+    if (!appId || !privateKeyRaw) {
+        throw new Error('GitHub App auth requires both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY.');
+    }
+    return {
+        appId,
+        privateKey: normalizePrivateKey(privateKeyRaw),
+    };
+}
+function assertValidAppId(appId) {
+    if (/^Iv/i.test(appId)) {
+        throw new Error('CONTEXTLEVY_APP_ID looks like a GitHub OAuth Client ID (Iv...). ' +
+            'Use the numeric GitHub App ID from your app settings instead.');
+    }
+}
+async function createAppInstallationToken(credentials, owner, repo) {
+    assertValidAppId(credentials.appId);
+    const auth = (0, auth_app_1.createAppAuth)({
+        appId: credentials.appId,
+        privateKey: credentials.privateKey,
+    });
+    const installationIdInput = core.getInput('app-installation-id').trim() ||
+        process.env.CONTEXTLEVY_APP_INSTALLATION_ID?.trim() ||
+        '';
+    let installationId = installationIdInput ? Number(installationIdInput) : undefined;
+    if (!installationId || Number.isNaN(installationId)) {
+        const appOctokit = new rest_1.Octokit({
+            authStrategy: auth_app_1.createAppAuth,
+            auth: {
+                appId: credentials.appId,
+                privateKey: credentials.privateKey,
+            },
+        });
+        const { data: installation } = await appOctokit.rest.apps.getRepoInstallation({
+            owner,
+            repo,
+        });
+        installationId = installation.id;
+    }
+    const { token } = await auth({
+        type: 'installation',
+        installationId,
+    });
+    if (!token) {
+        throw new Error('Failed to create GitHub App installation token.');
+    }
+    return token;
+}
+async function resolveGithubToken(owner, repo) {
+    const appCredentials = readAppCredentials();
+    if (appCredentials) {
+        core.info('Using ContextLevy GitHub App installation token.');
+        try {
+            return {
+                token: await createAppInstallationToken(appCredentials, owner, repo),
+                source: 'app',
+            };
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const tokenInput = core.getInput('github-token');
+            const envToken = process.env.GITHUB_TOKEN;
+            const fallbackToken = tokenInput || envToken;
+            if (fallbackToken) {
+                core.warning(`ContextLevy GitHub App auth failed (${message}). Falling back to ${tokenInput ? 'github-token' : 'GITHUB_TOKEN'}.`);
+                return {
+                    token: fallbackToken,
+                    source: tokenInput ? 'github-token' : 'GITHUB_TOKEN',
+                };
+            }
+            throw new Error(`ContextLevy GitHub App auth failed (${message}), and no github-token / GITHUB_TOKEN fallback was available. ` +
+                'Ensure CONTEXTLEVY_APP_PRIVATE_KEY contains the full PEM private key from your GitHub App.');
+        }
+    }
+    const tokenInput = core.getInput('github-token');
+    if (tokenInput) {
+        core.info('Using github-token input.');
+        return { token: tokenInput, source: 'github-token' };
+    }
+    const envToken = process.env.GITHUB_TOKEN;
+    if (envToken) {
+        core.info('Using GITHUB_TOKEN.');
+        return { token: envToken, source: 'GITHUB_TOKEN' };
+    }
+    throw new Error('No GitHub credentials found. Configure the ContextLevy GitHub App or provide github-token / GITHUB_TOKEN.');
+}
+
+
+/***/ }),
+
+/***/ 6645:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isCommentAccessError = isCommentAccessError;
+exports.upsertComment = upsertComment;
+const core = __importStar(__nccwpck_require__(7484));
+const comment_1 = __nccwpck_require__(5758);
+function isCommentAccessError(error) {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const candidate = error;
+    return (candidate.status === 403 ||
+        Boolean(candidate.message?.includes('Resource not accessible by integration')));
+}
+async function findContextLevyComment(octokit, owner, repo, issueNumber, options = {}) {
+    for await (const response of octokit.paginate.iterator(octokit.rest.issues.listComments, {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100,
+    })) {
+        for (const comment of response.data) {
+            const isExpectedAuthor = options.botLogin ? comment.user?.login === options.botLogin : true;
+            if (isExpectedAuthor && comment.body?.includes(comment_1.COMMENT_MARKER)) {
+                return { id: comment.id };
+            }
+        }
+    }
+    return undefined;
+}
+async function upsertComment(octokit, owner, repo, issueNumber, body, options = {}) {
+    const existing = await findContextLevyComment(octokit, owner, repo, issueNumber, options);
+    if (existing) {
+        try {
+            await octokit.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+            });
+            core.info(`Updated ContextLevy comment (${existing.id}).`);
+            return true;
+        }
+        catch (error) {
+            if (!isCommentAccessError(error)) {
+                throw error;
+            }
+            core.info(`Cannot update existing ContextLevy comment (${existing.id}) with the current token; creating a new comment.`);
+        }
+    }
+    try {
+        await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: issueNumber,
+            body,
+        });
+        core.info('Created ContextLevy comment.');
+        return true;
+    }
+    catch (error) {
+        if (!isCommentAccessError(error)) {
+            throw error;
+        }
+        core.warning('ContextLevy could not create a PR comment with the current token. Analysis outputs were still set.');
+        return false;
+    }
+}
+
+
+/***/ }),
+
+/***/ 9857:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.loadBaseConfig = loadBaseConfig;
+const load_1 = __nccwpck_require__(1036);
+function isRepositoryContentNotFound(error) {
+    return (typeof error === 'object' && error !== null && error.status === 404);
+}
+async function loadBaseConfig(octokit, owner, repo, ref) {
+    return (0, load_1.loadConfigFromRepository)(async (path, candidateRef) => {
+        try {
+            const response = await octokit.rest.repos.getContent({
+                owner,
+                repo,
+                path,
+                ref: candidateRef,
+            });
+            if (Array.isArray(response.data) ||
+                response.data.type !== 'file' ||
+                !('content' in response.data)) {
+                return null;
+            }
+            return Buffer.from(response.data.content, response.data.encoding).toString('utf8');
+        }
+        catch (error) {
+            if (isRepositoryContentNotFound(error)) {
+                return null;
+            }
+            throw error;
+        }
+    }, ref);
+}
+
+
+/***/ }),
+
+/***/ 5772:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.listAllPullRequestFiles = listAllPullRequestFiles;
+async function listAllPullRequestFiles(octokit, owner, repo, pullNumber) {
+    const files = [];
+    for await (const response of octokit.paginate.iterator(octokit.rest.pulls.listFiles, {
+        owner,
+        repo,
+        pull_number: pullNumber,
+        per_page: 100,
+    })) {
+        for (const file of response.data) {
+            files.push({
+                filename: file.filename,
+                status: file.status,
+                additions: file.additions,
+                deletions: file.deletions,
+                changes: file.changes,
+                patch: file.patch,
+            });
+        }
+    }
+    return files;
+}
+
+
+/***/ }),
+
+/***/ 1738:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = run;
+const core = __importStar(__nccwpck_require__(7484));
+const github = __importStar(__nccwpck_require__(3228));
+const load_1 = __nccwpck_require__(1036);
+const settings_1 = __nccwpck_require__(4661);
+const analyze_1 = __nccwpck_require__(3127);
+const fail_1 = __nccwpck_require__(5719);
+const comment_1 = __nccwpck_require__(5758);
+const auth_1 = __nccwpck_require__(4921);
+const comments_1 = __nccwpck_require__(6645);
+const config_loader_1 = __nccwpck_require__(9857);
+const files_1 = __nccwpck_require__(5772);
+const summary_1 = __nccwpck_require__(2935);
+async function getAuthenticatedLogin(octokit) {
+    try {
+        const response = await octokit.rest.users.getAuthenticated();
+        return response.data.login;
+    }
+    catch (error) {
+        core.info(`Could not resolve authenticated GitHub login for comment ownership checks: ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
+    }
+}
+async function run() {
+    const context = github.context;
+    if (!context.payload.pull_request) {
+        core.info('Not a pull_request event — skipping.');
+        return;
+    }
+    const pullNumber = context.payload.pull_request.number;
+    const { owner, repo } = context.repo;
+    const { token, source } = await (0, auth_1.resolveGithubToken)(owner, repo);
+    core.setOutput('token-source', source);
+    const octokit = github.getOctokit(token);
+    const baseSha = context.payload.pull_request.base?.sha;
+    const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
+    let config = null;
+    if (baseSha) {
+        config = await (0, config_loader_1.loadBaseConfig)(octokit, owner, repo, baseSha);
+        if (config) {
+            core.info(`Loaded ContextLevy config from base ref ${baseSha}.`);
+        }
+    }
+    if (!config && !baseSha) {
+        config = (0, load_1.loadConfigFile)(workspaceRoot);
+        if (config) {
+            core.info('Loaded ContextLevy config from workspace.');
+        }
+    }
+    if (!config) {
+        core.info('No ContextLevy config file found — using defaults.');
+    }
+    const settings = (0, settings_1.resolveSettings)(config);
+    core.info(`Analyzing PR #${pullNumber} in ${owner}/${repo}`);
+    const files = await (0, files_1.listAllPullRequestFiles)(octokit, owner, repo, pullNumber);
+    const analysis = (0, analyze_1.analyzePullRequestFiles)(files, {
+        largeFileTokenThreshold: settings.largeFileTokenThreshold,
+        ignorePaths: settings.ignorePaths,
+        allowPaths: settings.allowPaths,
+        estimationMode: settings.estimationMode,
+        customRules: settings.customRules,
+    });
+    core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
+    core.setOutput('analyzed-file-count', String(analysis.files.length));
+    core.setOutput('estimation-mode', settings.estimationMode);
+    const failDecision = (0, fail_1.shouldFailRun)(analysis, {
+        failOnSeverity: settings.failOnSeverity,
+        failAboveTokens: settings.failAboveTokens,
+        severityThresholds: settings.severityThresholds,
+    }, settings.maxHighImpactItems);
+    await (0, summary_1.writeJobSummary)(analysis, settings, failDecision);
+    if (failDecision.fail) {
+        core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
+    }
+    if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
+        core.info(`Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`);
+        return;
+    }
+    const body = (0, comment_1.formatComment)(analysis, {
+        maxHighImpactItems: settings.maxHighImpactItems,
+        showCostTable: settings.showCostTable,
+        pricingProfiles: settings.pricingProfiles,
+        commentFormat: settings.commentFormat,
+        severityThresholds: settings.severityThresholds,
+    });
+    const botLogin = await getAuthenticatedLogin(octokit);
+    try {
+        const posted = await (0, comments_1.upsertComment)(octokit, owner, repo, pullNumber, body, { botLogin });
+        if (posted) {
+            return;
+        }
+        if (source !== 'app') {
+            return;
+        }
+    }
+    catch (error) {
+        if (source !== 'app' || !(0, comments_1.isCommentAccessError)(error)) {
+            throw error;
+        }
+    }
+    const fallbackToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    if (!fallbackToken || fallbackToken === token) {
+        core.warning('ContextLevy GitHub App token could not write PR comments, and no distinct GITHUB_TOKEN fallback was available.');
+        return;
+    }
+    core.warning('ContextLevy GitHub App token could not write PR comments; retrying comment upsert with GITHUB_TOKEN.');
+    core.setOutput('token-source', 'GITHUB_TOKEN');
+    const fallbackOctokit = github.getOctokit(fallbackToken);
+    await (0, comments_1.upsertComment)(fallbackOctokit, owner, repo, pullNumber, body, {
+        botLogin: await getAuthenticatedLogin(fallbackOctokit),
+    });
+}
+
+
+/***/ }),
+
+/***/ 2935:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.writeJobSummary = writeJobSummary;
+const core = __importStar(__nccwpck_require__(7484));
+const analyze_1 = __nccwpck_require__(3127);
+const severity_1 = __nccwpck_require__(432);
+const shared_1 = __nccwpck_require__(9830);
+async function writeJobSummary(analysis, settings, failDecision) {
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, settings.maxHighImpactItems);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
+    const summary = core.summary
+        .addHeading('ContextLevy')
+        .addRaw(`Estimated **+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)}** net-new context tokens across **${analysis.files.length}** analyzed file(s).`)
+        .addEOL()
+        .addRaw(`**Risk level:** ${(0, severity_1.formatRiskLevel)(riskLevel)}`)
+        .addEOL()
+        .addRaw(`**Estimation mode:** \`${settings.estimationMode}\``)
+        .addEOL();
+    if (highImpact.length > 0) {
+        summary.addHeading('Top findings', 3);
+        summary.addTable([
+            [
+                { data: 'File', header: true },
+                { data: 'Added tokens', header: true },
+                { data: 'Category', header: true },
+            ],
+            ...highImpact.map((file) => [
+                file.filename,
+                `+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)}`,
+                file.category,
+            ]),
+        ]);
+    }
+    if (failDecision.fail) {
+        summary.addEOL().addRaw(`**Workflow failed:** ${failDecision.reason ?? 'Threshold exceeded.'}`);
+    }
+    await summary.write();
+}
+
+
+/***/ }),
+
+/***/ 9407:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.run = exports.upsertComment = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const run_1 = __nccwpck_require__(1738);
+var comments_1 = __nccwpck_require__(6645);
+Object.defineProperty(exports, "upsertComment", ({ enumerable: true, get: function () { return comments_1.upsertComment; } }));
+var run_2 = __nccwpck_require__(1738);
+Object.defineProperty(exports, "run", ({ enumerable: true, get: function () { return run_2.run; } }));
+if (require.main === require.cache[eval('__filename')]) {
+    (0, run_1.run)().catch((error) => {
+        if (error instanceof Error) {
+            core.setFailed(error.message);
+        }
+        else {
+            core.setFailed(String(error));
+        }
+    });
 }
 
 

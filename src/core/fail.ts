@@ -1,9 +1,7 @@
+import type { SeverityLevel } from '../config/types';
 import { getHighImpactFiles } from './analyze';
-import { getRiskLevel, severityMeetsThreshold } from './comment';
-import type { SeverityLevel } from './config';
-import type { PullRequestAnalysis } from './types';
-
-import type { SeverityThresholds } from './types';
+import { getRiskLevel, severityMeetsThreshold } from './severity';
+import type { PullRequestAnalysis, SeverityThresholds } from './types';
 
 export interface FailSettings {
   failOnSeverity?: SeverityLevel;

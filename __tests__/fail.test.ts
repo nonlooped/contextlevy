@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { shouldFailRun } from '../src/fail';
-import type { PullRequestAnalysis } from '../src/types';
+import { shouldFailRun } from '../src/core/fail';
+import type { PullRequestAnalysis } from '../src/core/types';
 
 const analysis: PullRequestAnalysis = {
   totalEstimatedTokens: 25_000,
@@ -23,26 +23,20 @@ describe('shouldFailRun', () => {
   });
 
   it('fails when severity threshold is met', () => {
-    expect(
-      shouldFailRun(analysis, { failOnSeverity: 'high' }),
-    ).toEqual({
+    expect(shouldFailRun(analysis, { failOnSeverity: 'high' })).toEqual({
       fail: true,
       reason: expect.stringMatching(/risk level/i),
     });
   });
 
   it('fails when token threshold is exceeded', () => {
-    expect(
-      shouldFailRun(analysis, { failAboveTokens: 20_000 }),
-    ).toEqual({
+    expect(shouldFailRun(analysis, { failAboveTokens: 20_000 })).toEqual({
       fail: true,
       reason: expect.stringMatching(/25,?000/),
     });
   });
 
   it('does not fail below configured token threshold', () => {
-    expect(
-      shouldFailRun(analysis, { failAboveTokens: 30_000 }),
-    ).toEqual({ fail: false });
+    expect(shouldFailRun(analysis, { failAboveTokens: 30_000 })).toEqual({ fail: false });
   });
 });

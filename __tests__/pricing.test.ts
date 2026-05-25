@@ -1,8 +1,5 @@
-import {
-  DEFAULT_PRICING_PROFILES,
-  estimateSessionCost,
-  parsePricingProfiles,
-} from '../src/pricing';
+import { parsePricingProfiles } from '../src/config/parse';
+import { DEFAULT_PRICING_PROFILES, estimateSessionCost } from '../src/core/pricing';
 
 describe('parsePricingProfiles', () => {
   it('returns defaults when input is empty', () => {

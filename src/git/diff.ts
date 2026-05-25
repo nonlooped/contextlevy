@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import type { PullRequestFileLike } from '../types';
-import { estimateTokensFromPatch } from '../tokens';
+import type { PullRequestFileLike } from '../core/types';
 
 export function parseNumstatLine(line: string): PullRequestFileLike | null {
   const match = line.match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
@@ -76,8 +75,4 @@ export function attachPatches(
     ...file,
     patch: loadPatchForFile(baseRef, file.filename, staged, cwd),
   }));
-}
-
-export function patchToEstimatedTokens(patch: string): number {
-  return estimateTokensFromPatch(patch);
 }
