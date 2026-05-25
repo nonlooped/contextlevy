@@ -1,6 +1,6 @@
 # GitHub Action
 
-ContextLevy runs as a GitHub Action on pull requests. The workflow YAML only needs authentication inputs; all behavior tuning lives in [`.contextlevy.yml`](CONFIG.md).
+ContextLevy runs as a GitHub Action on pull requests. The workflow YAML only needs authentication inputs; all behavior tuning lives in [`contextlevy.config.yml`](CONFIG.md).
 
 ## Quick start
 
@@ -17,7 +17,7 @@ The action accepts **authentication inputs only**. All behavior tuning belongs i
 | `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | GitHub App private key PEM |
 | `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional GitHub App installation ID override |
 
-Auth credentials should stay in GitHub secrets or variables. Do not put private keys in `.contextlevy.yml`.
+Auth credentials should stay in GitHub secrets or variables. Do not put private keys in `contextlevy.config.yml`.
 
 ## Action outputs
 

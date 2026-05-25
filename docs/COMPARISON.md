@@ -53,7 +53,7 @@ ContextLevy pays off most in:
 - **Monorepos and dependency PRs** where lockfile churn or vendored output can dominate a diff without affecting runtime bundle size.
 - **Repos adopting agent instruction files** (`.agents/`, `AGENTS.md`, skill packs) where silent behavior changes deserve review alongside code.
 
-ContextLevy does not block merges by default. It comments with severity, file classifications, and cleanup suggestions. Teams that want a hard gate can enable `fail-on-severity` or `fail-above-tokens` in [`.contextlevy.yml`](CONFIG.md).
+ContextLevy does not block merges by default. It comments with severity, file classifications, and cleanup suggestions. Teams that want a hard gate can enable `fail-on-severity` or `fail-above-tokens` in [`contextlevy.config.yml`](CONFIG.md).
 
 ## vs `.gitattributes` diff filters
 

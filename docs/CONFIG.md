@@ -2,21 +2,27 @@
 
 ContextLevy reads all analysis and comment options from a config file in the repository. Add a config file once — workflow YAML stays minimal.
 
-On pull requests, ContextLevy reads configuration from the base branch version of the repository. A PR cannot silence the check by changing `.contextlevy.yml` in the same diff.
+On pull requests, ContextLevy reads configuration from the base branch version of the repository. A PR cannot silence the check by changing `contextlevy.config.yml` in the same diff.
 
 ## Config paths
 
 Supported config paths, in priority order:
 
-1. `.contextlevy.yml`
-2. `.contextlevy.yaml`
-3. `.contextlevy.json`
-4. `.github/contextlevy.yml`
-5. `.github/contextlevy.yaml`
-6. `.github/contextlevy.json`
-7. `contextlevy.yml`
-8. `contextlevy.yaml`
-9. `contextlevy.json`
+1. `contextlevy.config.yml`
+2. `contextlevy.config.yaml`
+3. `contextlevy.config.json`
+4. `.github/contextlevy.config.yml`
+5. `.github/contextlevy.config.yaml`
+6. `.github/contextlevy.config.json`
+7. `.contextlevy.yml` (legacy)
+8. `.contextlevy.yaml` (legacy)
+9. `.contextlevy.json` (legacy)
+10. `.github/contextlevy.yml` (legacy)
+11. `.github/contextlevy.yaml` (legacy)
+12. `.github/contextlevy.json` (legacy)
+13. `contextlevy.yml` (legacy)
+14. `contextlevy.yaml` (legacy)
+15. `contextlevy.json` (legacy)
 
 If no config file is found, ContextLevy uses built-in defaults.
 
@@ -31,7 +37,7 @@ token-threshold: 1000
 
 Schema file: [docs/schema/contextlevy.schema.json](schema/contextlevy.schema.json)
 
-## Example `.contextlevy.yml`
+## Example `contextlevy.config.yml`
 
 ```yaml
 token-threshold: 1000
