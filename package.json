@@ -1,6 +1,6 @@
 {
   "name": "contextlevy",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "Estimate AI agent context overhead from git diffs — local CLI and GitHub Action",
   "license": "MIT",
   "author": "unloopedmido",
