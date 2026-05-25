@@ -53,7 +53,7 @@ ContextLevy pays off most in:
 - **Monorepos and dependency PRs** where lockfile churn or vendored output can dominate a diff without affecting runtime bundle size.
 - **Repos adopting agent instruction files** (`.agents/`, `AGENTS.md`, skill packs) where silent behavior changes deserve review alongside code.
 
-ContextLevy does not block merges by default. It comments with severity, file classifications, and cleanup suggestions. Teams that want a hard gate can enable `fail-on-severity` or `fail-above-tokens` in [`.contextlevy.yml`](../README.md#configuration).
+ContextLevy does not block merges by default. It comments with severity, file classifications, and cleanup suggestions. Teams that want a hard gate can enable `fail-on-severity` or `fail-above-tokens` in [`.contextlevy.yml`](CONFIG.md).
 
 ## vs `.gitattributes` diff filters
 
@@ -69,4 +69,4 @@ Use both when generated files must stay in git but should not dominate agent con
 
 ## Get started
 
-Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) on your repository, add the workflow from the [README quick start](../README.md#quick-start), and tune thresholds in your config file.
+Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) on your repository, add the workflow from the [README quick start](../README.md#quick-start), and tune thresholds in [CONFIG.md](CONFIG.md).

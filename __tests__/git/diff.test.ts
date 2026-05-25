@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumstatLine, patchToEstimatedTokens } from '../../src/git/diff';
+import { estimateTokensFromPatch } from '../../src/core/tokens';
+import { parseNumstatLine } from '../../src/git/diff';
 
 describe('parseNumstatLine', () => {
   it('parses added file numstat', () => {
@@ -13,8 +14,8 @@ describe('parseNumstatLine', () => {
   });
 });
 
-describe('patchToEstimatedTokens', () => {
+describe('estimateTokensFromPatch', () => {
   it('delegates to existing token estimator', () => {
-    expect(patchToEstimatedTokens('+++ b/foo.ts\n+hello\n')).toBeGreaterThan(0);
+    expect(estimateTokensFromPatch('+++ b/foo.ts\n+hello\n')).toBeGreaterThan(0);
   });
 });

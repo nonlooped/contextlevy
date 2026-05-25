@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { writeJobSummary } from '../src/summary';
-import type { PullRequestAnalysis } from '../src/types';
-import { resolveSettings } from '../src/settings';
+import { resolveSettings } from '../../src/config/settings';
+import type { PullRequestAnalysis } from '../../src/core/types';
+import { writeJobSummary } from '../../src/github/summary';
 
 vi.mock('@actions/core', () => {
   const chain = {

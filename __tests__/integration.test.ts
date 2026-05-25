@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { analyzePullRequestFiles } from '../src/analyze';
-import { parseConfigContents } from '../src/config';
-import { shouldFailRun } from '../src/fail';
-import { resolveSettings } from '../src/settings';
-import type { PullRequestFileLike } from '../src/types';
+import { parseConfigContents } from '../src/config/parse';
+import { resolveSettings } from '../src/config/settings';
+import { analyzePullRequestFiles } from '../src/core/analyze';
+import { shouldFailRun } from '../src/core/fail';
+import type { PullRequestFileLike } from '../src/core/types';
 
 const highImpactFiles: PullRequestFileLike[] = [
   {

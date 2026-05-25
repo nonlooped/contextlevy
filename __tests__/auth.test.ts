@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as core from '@actions/core';
 import { Octokit } from '@octokit/rest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createAppInstallationToken,
   normalizePrivateKey,
   readAppCredentials,
   resolveGithubToken,
-} from '../src/auth';
+} from '../src/github/auth';
 
 vi.mock('@actions/core', () => ({
   getInput: vi.fn(() => ''),
@@ -47,14 +47,13 @@ function mockOctokitSuccess(): void {
 
 describe('normalizePrivateKey', () => {
   it('restores escaped newlines from GitHub secrets', () => {
-    expect(normalizePrivateKey('-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----')).toBe(
-      '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
-    );
+    expect(
+      normalizePrivateKey('-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----'),
+    ).toBe('-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n');
   });
 
   it('reformats single-line PEM secrets', () => {
-    const oneLine =
-      '-----BEGIN RSA PRIVATE KEY-----ABCDEF1234567890-----END RSA PRIVATE KEY-----';
+    const oneLine = '-----BEGIN RSA PRIVATE KEY-----ABCDEF1234567890-----END RSA PRIVATE KEY-----';
 
     expect(normalizePrivateKey(oneLine)).toBe(
       '-----BEGIN RSA PRIVATE KEY-----\nABCDEF1234567890\n-----END RSA PRIVATE KEY-----\n',
@@ -159,9 +158,9 @@ describe('resolveGithubToken', () => {
     process.env.CONTEXTLEVY_APP_PRIVATE_KEY = 'bad-key';
     process.env.GITHUB_TOKEN = 'env-token';
 
-    MockOctokit.mockImplementationOnce(function () {
+    MockOctokit.mockImplementationOnce((() => {
       throw new Error('Invalid keyData');
-    } as never);
+    }) as never);
 
     const resolved = await resolveGithubToken('unloopedmido', 'contextlevy');
 

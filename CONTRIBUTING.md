@@ -23,7 +23,24 @@ npm run build
 
 If you change files under `src/`, rebuild and commit `dist/index.js`. Consumers run the compiled action and do not need to install runtime dependencies at use time.
 
-See [README.md — Development](README.md#development) for the same commands in project context.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for build commands, release process, and trusted publishing.
+
+## Code style
+
+[Biome](https://biomejs.dev/) is the source of truth for formatting and linting. Run before opening a PR:
+
+```bash
+npm run check
+```
+
+## Module placement
+
+Follow the module layout and dependency rules in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In short:
+
+- Analysis logic belongs in `core/` — no imports from `format/`, `github/`, or `cli/`.
+- Config parsing belongs in `config/`.
+- Output rendering belongs in `format/`.
+- GitHub Action wiring belongs in `github/`; CLI wiring belongs in `cli/`.
 
 ## Self-hosted GitHub App (maintainers and contributors only)
 
@@ -52,6 +69,7 @@ Optional override: `CONTEXTLEVY_APP_INSTALLATION_ID`.
 
 Before opening a PR:
 
+- Run `npm run check` and confirm lint/format passes.
 - Run `npm test` and confirm all tests pass.
 - Run `npm run build` if you changed `src/`, and include updated `dist/index.js`.
 - Add a [CHANGELOG.md](CHANGELOG.md) entry for user-facing changes (new behavior, config keys, comment output, auth, or workflow compatibility).

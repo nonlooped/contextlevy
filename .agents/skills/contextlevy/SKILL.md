@@ -139,7 +139,7 @@ contextlevy diff --base main --fail-above-tokens 10000
 
 ## Configuration
 
-Add `.contextlevy.yml` at the repo root (or see [reference.md](reference.md) for all supported paths).
+Add `.contextlevy.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
 
 Minimal example:
 
@@ -191,4 +191,4 @@ When helping a user set up ContextLevy:
 4. Recommend `fail-on-config` in pre-push hooks; use `fail-on-severity: high` in CI for advisory-first teams.
 5. Do **not** put GitHub App private keys in `.contextlevy.yml` — use secrets/variables.
 
-For full config tables, severity levels, and recipes, see [reference.md](reference.md).
+For full config tables, severity levels, and recipes, see [CONFIG.md](../../../docs/CONFIG.md).

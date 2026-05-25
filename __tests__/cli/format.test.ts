@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { formatCliOutput } from '../../src/cli/format';
-import { DEFAULT_PRICING_PROFILES } from '../../src/pricing';
-import type { PullRequestAnalysis } from '../../src/types';
+import { DEFAULT_PRICING_PROFILES } from '../../src/core/pricing';
+import type { PullRequestAnalysis } from '../../src/core/types';
 
 const analysis: PullRequestAnalysis = {
   totalEstimatedTokens: 37_891,
-  suggestions: ['Add coverage/ to .gitignore.', 'Avoid committing generated output unless required.'],
+  suggestions: [
+    'Add coverage/ to .gitignore.',
+    'Avoid committing generated output unless required.',
+  ],
   files: [
     {
       filename: 'examples/high-impact-pr/coverage/lcov.info',

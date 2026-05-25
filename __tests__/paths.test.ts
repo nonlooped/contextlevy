@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchesPathPattern, matchesAnyPathPattern } from '../src/paths';
+import { matchesAnyPathPattern, matchesPathPattern } from '../src/core/paths';
 
 describe('matchesPathPattern', () => {
   it('matches exact paths', () => {
@@ -20,8 +20,6 @@ describe('matchesPathPattern', () => {
 
 describe('matchesAnyPathPattern', () => {
   it('returns true when any pattern matches', () => {
-    expect(
-      matchesAnyPathPattern('vendor/lib/foo.go', ['docs/**', 'vendor/**']),
-    ).toBe(true);
+    expect(matchesAnyPathPattern('vendor/lib/foo.go', ['docs/**', 'vendor/**'])).toBe(true);
   });
 });

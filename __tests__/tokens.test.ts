@@ -1,14 +1,12 @@
-import { countAddedCharsInPatch, estimateTokensFromPatch, estimateTokensFromAdditions } from '../src/tokens';
+import {
+  countAddedCharsInPatch,
+  estimateTokensFromAdditions,
+  estimateTokensFromPatch,
+} from '../src/core/tokens';
 
 describe('countAddedCharsInPatch', () => {
   it('counts characters on added lines only', () => {
-    const patch = [
-      '@@ -1,2 +1,3 @@',
-      ' context',
-      '-old',
-      '+new line',
-      '+second',
-    ].join('\n');
+    const patch = ['@@ -1,2 +1,3 @@', ' context', '-old', '+new line', '+second'].join('\n');
 
     expect(countAddedCharsInPatch(patch)).toBe('new line'.length + 'second'.length);
   });
@@ -38,7 +36,7 @@ describe('estimateTokensFromAdditions', () => {
 
 describe('estimateTokensFromText', () => {
   it('uses tokenizer mode when requested', async () => {
-    const { estimateTokensFromText } = await import('../src/tokens');
+    const { estimateTokensFromText } = await import('../src/core/tokens');
     const text = 'export const values = [1, 2, 3];';
 
     expect(estimateTokensFromText(text, 'simple')).toBe(Math.ceil(text.length / 4));

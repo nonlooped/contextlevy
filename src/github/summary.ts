@@ -1,9 +1,10 @@
 import * as core from '@actions/core';
-import { getHighImpactFiles } from './analyze';
-import { formatCompactTokens, formatRiskLevel, getRiskLevel } from './comment';
-import type { FailDecision } from './fail';
-import type { ContextLevySettings } from './settings';
-import type { PullRequestAnalysis } from './types';
+import type { ContextLevySettings } from '../config/settings';
+import { getHighImpactFiles } from '../core/analyze';
+import type { FailDecision } from '../core/fail';
+import { formatRiskLevel, getRiskLevel } from '../core/severity';
+import type { PullRequestAnalysis } from '../core/types';
+import { formatCompactTokens } from '../format/shared';
 
 export async function writeJobSummary(
   analysis: PullRequestAnalysis,

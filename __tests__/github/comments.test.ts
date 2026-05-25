@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { upsertComment } from '../src/index';
+import { upsertComment } from '../../src/github/comments';
 
 function createAccessError(): Error & { status: number } {
   const error = new Error('Resource not accessible by integration') as Error & { status: number };
@@ -26,9 +26,9 @@ describe('upsertComment', () => {
       },
     };
 
-    await expect(
-      upsertComment(octokit as never, 'owner', 'repo', 123, 'body'),
-    ).resolves.toBe(false);
+    await expect(upsertComment(octokit as never, 'owner', 'repo', 123, 'body')).resolves.toBe(
+      false,
+    );
   });
 
   it('only updates comments authored by the current action identity', async () => {

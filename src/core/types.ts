@@ -1,23 +1,26 @@
-export type ContextCategory =
-  | 'generated'
-  | 'coverage'
-  | 'lockfile'
-  | 'build-output'
-  | 'log'
-  | 'snapshot'
-  | 'agent-config'
-  | 'minified'
-  | 'vendor'
-  | 'source-map'
-  | 'protobuf'
-  | 'openapi'
-  | 'dependency-dir'
-  | 'cache-dir'
-  | 'test-output'
-  | 'fixture'
-  | 'binary-asset'
-  | 'large-file'
-  | 'other';
+export const CONTEXT_CATEGORIES = [
+  'generated',
+  'coverage',
+  'lockfile',
+  'build-output',
+  'log',
+  'snapshot',
+  'agent-config',
+  'minified',
+  'vendor',
+  'source-map',
+  'protobuf',
+  'openapi',
+  'dependency-dir',
+  'cache-dir',
+  'test-output',
+  'fixture',
+  'binary-asset',
+  'large-file',
+  'other',
+] as const;
+
+export type ContextCategory = (typeof CONTEXT_CATEGORIES)[number];
 
 export interface PullRequestFileLike {
   filename: string;

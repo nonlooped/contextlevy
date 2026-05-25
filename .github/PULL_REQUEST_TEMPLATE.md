@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] `npm test` passes locally
+- [ ] `npm run check` passes locally
 - [ ] [CHANGELOG.md](../CHANGELOG.md) updated for user-facing changes
 - [ ] `npm run build` run and `dist/index.js` committed (if `src/` changed)
 - [ ] Screenshot added (if PR comment UI or formatting changed)

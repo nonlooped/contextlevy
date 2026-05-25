@@ -17,10 +17,7 @@ export interface ResolvedGithubToken {
 export function normalizePrivateKey(privateKey: string): string {
   let key = privateKey.trim();
 
-  if (
-    (key.startsWith('"') && key.endsWith('"')) ||
-    (key.startsWith("'") && key.endsWith("'"))
-  ) {
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
     key = key.slice(1, -1).trim();
   }
 

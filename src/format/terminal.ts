@@ -1,22 +1,22 @@
 import chalk from 'chalk';
-import { getHighImpactFiles } from '../analyze';
-import {
-  buildSuggestions,
-  formatCompactTokens,
-  getRiskLevel,
-} from '../comment';
-import { estimateSessionCost } from '../pricing';
+import { getHighImpactFiles } from '../core/analyze';
+import { estimateSessionCost } from '../core/pricing';
+import { getRiskLevel } from '../core/severity';
 import type {
   CommentOptions,
   FileAnalysis,
   PricingProfile,
   PullRequestAnalysis,
-  SeverityThresholds,
-} from '../types';
-import { DEFAULT_SEVERITY_THRESHOLDS } from '../settings';
-
-const COMPACT_MAX_FINDINGS = 3;
-const COMPACT_MAX_SUGGESTIONS = 2;
+} from '../core/types';
+import { buildSuggestions } from './comment';
+import {
+  COMPACT_MAX_FINDINGS,
+  COMPACT_MAX_SUGGESTIONS,
+  formatCompactTokens,
+  formatCostRange,
+  formatUsd,
+  resolveSeverityThresholds,
+} from './shared';
 
 const RISK_COLORS = {
   Low: chalk.green,
@@ -32,30 +32,6 @@ const RISK_EMOJI = {
   Critical: '⛔',
 } as const;
 
-function resolveSeverityThresholds(options: {
-  severityThresholds?: SeverityThresholds;
-}): SeverityThresholds {
-  return options.severityThresholds ?? DEFAULT_SEVERITY_THRESHOLDS;
-}
-
-function formatUsd(value: number): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatCostRange(cost: number): string {
-  const low = cost * 0.5;
-  const high = cost * 1.5;
-  if (Math.abs(low - high) < 0.005) {
-    return `~${formatUsd(cost)}`;
-  }
-  return `~${formatUsd(low)}–${formatUsd(high)}`;
-}
-
 function renderInlineMarkdown(text: string): string {
   return text
     .replace(/\*\*([^*]+)\*\*/g, (_, value: string) => chalk.bold(value))
@@ -70,10 +46,7 @@ function formatShortPath(filename: string): string {
   return parts.slice(-2).join('/');
 }
 
-function getFindings(
-  analysis: PullRequestAnalysis,
-  maxItems: number,
-): FileAnalysis[] {
+function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnalysis[] {
   const rows = getHighImpactFiles(analysis, maxItems);
   if (rows.length > 0) {
     return rows;
@@ -81,19 +54,13 @@ function getFindings(
   return analysis.files.slice(0, maxItems);
 }
 
-function formatRiskBadge(
-  riskLevel: ReturnType<typeof getRiskLevel>,
-  boldLabel = false,
-): string {
+function formatRiskBadge(riskLevel: ReturnType<typeof getRiskLevel>, boldLabel = false): string {
   const color = RISK_COLORS[riskLevel];
   const label = boldLabel ? chalk.bold(riskLevel) : riskLevel;
   return `${RISK_EMOJI[riskLevel]} ${color(label)}`;
 }
 
-function formatFindingsTable(
-  analysis: PullRequestAnalysis,
-  maxItems: number,
-): string {
+function formatFindingsTable(analysis: PullRequestAnalysis, maxItems: number): string {
   const rows = getFindings(analysis, maxItems);
   if (rows.length === 0) {
     return chalk.dim('No added context detected in this diff.');
@@ -103,23 +70,19 @@ function formatFindingsTable(
     5,
     ...rows.map((file) => `+${formatCompactTokens(file.estimatedTokens)}`.length),
   );
-  const fileWidth = Math.max(
-    4,
-    ...rows.map((file) => file.filename.length),
-  );
+  const fileWidth = Math.max(4, ...rows.map((file) => file.filename.length));
 
   const header = [
     chalk.bold('ADDED'.padStart(addedWidth)),
     chalk.bold('FILE'.padEnd(fileWidth)),
   ].join('  ');
 
-  const divider = [
-    chalk.dim('─'.repeat(addedWidth)),
-    chalk.dim('─'.repeat(fileWidth)),
-  ].join('  ');
+  const divider = [chalk.dim('─'.repeat(addedWidth)), chalk.dim('─'.repeat(fileWidth))].join('  ');
 
   const body = rows.flatMap((file) => {
-    const added = chalk.yellow(`+${formatCompactTokens(file.estimatedTokens)}`.padStart(addedWidth));
+    const added = chalk.yellow(
+      `+${formatCompactTokens(file.estimatedTokens)}`.padStart(addedWidth),
+    );
     const filename = chalk.cyan(file.filename.padEnd(fileWidth));
     const labelIndent = ' '.repeat(addedWidth + 2);
     const label = chalk.dim(`${labelIndent}${file.label}`);
@@ -143,17 +106,11 @@ function formatPricingSection(
     chalk.bold('Est. input cost (±50%)'),
   ].join('  ');
 
-  const divider = [
-    chalk.dim('─'.repeat(nameWidth)),
-    chalk.dim('─'.repeat(24)),
-  ].join('  ');
+  const divider = [chalk.dim('─'.repeat(nameWidth)), chalk.dim('─'.repeat(24))].join('  ');
 
   const rows = pricingProfiles.map((profile) => {
     const cost = estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion);
-    return [
-      profile.name.padEnd(nameWidth),
-      `${formatCostRange(cost)}/session`,
-    ].join('  ');
+    return [profile.name.padEnd(nameWidth), `${formatCostRange(cost)}/session`].join('  ');
   });
 
   return [
@@ -173,7 +130,9 @@ function formatSuggestions(suggestions: string[]): string {
     return chalk.dim('  • No specific suggestions — diff looks context-light.');
   }
 
-  return suggestions.map((suggestion) => `  ${chalk.cyan('•')} ${renderInlineMarkdown(suggestion)}`).join('\n');
+  return suggestions
+    .map((suggestion) => `  ${chalk.cyan('•')} ${renderInlineMarkdown(suggestion)}`)
+    .join('\n');
 }
 
 function formatCompactFixSuggestion(suggestion: string): string {
@@ -325,10 +284,7 @@ export function formatTerminalCompact(
     lines.push('', ...detailLines);
   }
 
-  lines.push(
-    '',
-    chalk.dim('Estimated context risk only. Agents may not read every changed file.'),
-  );
+  lines.push('', chalk.dim('Estimated context risk only. Agents may not read every changed file.'));
 
   return lines.join('\n');
 }

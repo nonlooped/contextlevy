@@ -1,8 +1,8 @@
-import { analyzePullRequestFiles } from '../analyze';
-import { loadConfigFile } from '../config';
-import { shouldFailRun } from '../fail';
+import { loadConfigFile } from '../config/load';
+import { resolveSettings } from '../config/settings';
+import { analyzePullRequestFiles } from '../core/analyze';
+import { shouldFailRun } from '../core/fail';
 import { attachPatches, listChangedFiles } from '../git/diff';
-import { resolveSettings } from '../settings';
 import type { CliArgs } from './args';
 import { formatCliOutput } from './format';
 

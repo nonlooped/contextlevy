@@ -1,6 +1,6 @@
-import type { CommentOptions, PullRequestAnalysis } from '../types';
+import type { CommentOptions, PullRequestAnalysis } from '../core/types';
+import { formatTerminalCompact, formatTerminalDefault } from '../format/terminal';
 import type { CliArgs } from './args';
-import { formatTerminalCompact, formatTerminalDefault } from './terminal';
 
 export function formatCliOutput(
   analysis: PullRequestAnalysis,
