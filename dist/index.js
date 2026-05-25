@@ -35547,7 +35547,6 @@ function wrappy (fn, cb) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_CONFIG_PATHS = void 0;
-exports.resolveConfigPath = resolveConfigPath;
 exports.loadConfigFile = loadConfigFile;
 exports.loadConfigFromRepository = loadConfigFromRepository;
 const node_fs_1 = __nccwpck_require__(3024);
@@ -35606,19 +35605,34 @@ async function loadConfigFromRepository(readConfig, ref) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseCommentFormat = parseCommentFormat;
-exports.parsePricingProfilesValue = parsePricingProfilesValue;
 exports.parsePricingProfiles = parsePricingProfiles;
-exports.parseEstimationMode = parseEstimationMode;
-exports.parseCustomRulesValue = parseCustomRulesValue;
-exports.parseSeverityThresholdsValue = parseSeverityThresholdsValue;
-exports.normalizeConfig = normalizeConfig;
 exports.parseConfigContents = parseConfigContents;
 const yaml_1 = __nccwpck_require__(8815);
 const pricing_1 = __nccwpck_require__(7577);
 const types_1 = __nccwpck_require__(3054);
+const MODES = ['advisory', 'strict', 'minimal', 'legacy'];
 const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'];
 const ESTIMATION_MODES = ['simple', 'tokenizer'];
+function parseMode(value, fieldName) {
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+    if (typeof value !== 'string') {
+        throw new Error(`${fieldName} must be one of: advisory, strict, minimal, legacy.`);
+    }
+    const normalized = value.trim().toLowerCase();
+    if (!MODES.includes(normalized)) {
+        throw new Error(`${fieldName} must be one of: advisory, strict, minimal, legacy.`);
+    }
+    return normalized;
+}
+function parseContextCategoryArray(value, fieldName) {
+    const entries = readStringArray(value, fieldName);
+    if (!entries) {
+        return undefined;
+    }
+    return entries.map((entry, index) => parseContextCategory(entry, `${fieldName}[${index}]`));
+}
 function readConfigValue(record, camelKey, kebabKey) {
     if (record[camelKey] !== undefined) {
         return record[camelKey];
@@ -35851,16 +35865,22 @@ function normalizeConfig(raw, sourcePath) {
     const pricingProfilesRaw = readConfigValue(record, 'pricingProfiles', 'pricing-profiles');
     const customRulesRaw = readConfigValue(record, 'customRules', 'custom-rules');
     const severityThresholdsRaw = readConfigValue(record, 'severityThresholds', 'severity-thresholds');
+    const allowPathsRaw = readConfigValue(record, 'allowPaths', 'allow-paths') ??
+        readConfigValue(record, 'allowlistPaths', 'allowlist-paths');
     const config = {
+        mode: parseMode(readConfigValue(record, 'mode', 'mode'), 'mode'),
         tokenThreshold: readOptionalInteger(readConfigValue(record, 'tokenThreshold', 'token-threshold'), 'token-threshold'),
         largeFileTokenThreshold: readOptionalInteger(readConfigValue(record, 'largeFileTokenThreshold', 'large-file-token-threshold'), 'large-file-token-threshold'),
         maxHighImpactItems: readOptionalInteger(readConfigValue(record, 'maxHighImpactItems', 'max-high-impact-items'), 'max-high-impact-items'),
         showCostTable: readOptionalBoolean(readConfigValue(record, 'showCostTable', 'show-cost-table'), 'show-cost-table'),
         commentFormat: parseCommentFormat(readConfigValue(record, 'commentFormat', 'comment-format'), 'comment-format'),
+        commentOnHygiene: readOptionalBoolean(readConfigValue(record, 'commentOnHygiene', 'comment-on-hygiene'), 'comment-on-hygiene'),
         ignorePaths: readStringArray(readConfigValue(record, 'ignorePaths', 'ignore-paths'), 'ignore-paths'),
-        allowPaths: readStringArray(readConfigValue(record, 'allowPaths', 'allow-paths'), 'allow-paths'),
+        allowPaths: readStringArray(allowPathsRaw, 'allow-paths'),
         failOnSeverity: parseSeverityLevel(readConfigValue(record, 'failOnSeverity', 'fail-on-severity'), 'fail-on-severity'),
         failAboveTokens: readOptionalInteger(readConfigValue(record, 'failAboveTokens', 'fail-above-tokens'), 'fail-above-tokens'),
+        failOnCategories: parseContextCategoryArray(readConfigValue(record, 'failOnCategories', 'fail-on-categories'), 'fail-on-categories'),
+        warnOnlyCategories: parseContextCategoryArray(readConfigValue(record, 'warnOnlyCategories', 'warn-only-categories'), 'warn-only-categories'),
         estimationMode: parseEstimationMode(readConfigValue(record, 'estimationMode', 'estimation-mode'), 'estimation-mode'),
     };
     if (pricingProfilesRaw !== undefined) {
@@ -35908,25 +35928,62 @@ function parseConfigContents(contents, sourcePath) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_SEVERITY_THRESHOLDS = void 0;
 exports.resolveSeverityThresholds = resolveSeverityThresholds;
 exports.resolveSettings = resolveSettings;
+const categories_1 = __nccwpck_require__(2711);
 const defaults_1 = __nccwpck_require__(5553);
-Object.defineProperty(exports, "DEFAULT_SEVERITY_THRESHOLDS", ({ enumerable: true, get: function () { return defaults_1.DEFAULT_SEVERITY_THRESHOLDS; } }));
 const pricing_1 = __nccwpck_require__(7577);
-const DEFAULTS = {
+const LEGACY_DEFAULTS = {
     tokenThreshold: 1000,
     largeFileTokenThreshold: 5000,
     maxHighImpactItems: 5,
     showCostTable: true,
     pricingProfiles: pricing_1.DEFAULT_PRICING_PROFILES,
     commentFormat: 'default',
+    commentOnHygiene: false,
     ignorePaths: [],
     allowPaths: [],
+    failOnSeverity: undefined,
+    failAboveTokens: undefined,
+    failOnCategories: [],
+    warnOnlyCategories: [],
     estimationMode: 'simple',
     customRules: [],
     severityThresholds: defaults_1.DEFAULT_SEVERITY_THRESHOLDS,
 };
+const ADVISORY_PRESET = {
+    commentFormat: 'compact',
+    showCostTable: false,
+    commentOnHygiene: true,
+    tokenThreshold: 2000,
+    failOnCategories: [],
+    warnOnlyCategories: [],
+};
+const STRICT_PRESET = {
+    ...ADVISORY_PRESET,
+    failOnCategories: [...categories_1.HARD_FAIL_CATEGORIES],
+    warnOnlyCategories: [...categories_1.WARN_ONLY_CATEGORIES],
+};
+const MINIMAL_PRESET = {
+    commentFormat: 'compact',
+    showCostTable: false,
+    commentOnHygiene: false,
+    tokenThreshold: 20_000,
+    failOnCategories: [],
+    warnOnlyCategories: [],
+};
+function getModePreset(mode) {
+    switch (mode) {
+        case 'strict':
+            return STRICT_PRESET;
+        case 'minimal':
+            return MINIMAL_PRESET;
+        case 'legacy':
+            return LEGACY_DEFAULTS;
+        default:
+            return ADVISORY_PRESET;
+    }
+}
 function resolveSeverityThresholds(partial) {
     return {
         mediumTokens: partial?.mediumTokens ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.mediumTokens,
@@ -35937,22 +35994,53 @@ function resolveSeverityThresholds(partial) {
         criticalHighImpactCount: partial?.criticalHighImpactCount ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS.criticalHighImpactCount,
     };
 }
-function resolveSettings(config) {
+function applyExplicitOverrides(base, config) {
     return {
-        tokenThreshold: config?.tokenThreshold ?? DEFAULTS.tokenThreshold,
-        largeFileTokenThreshold: config?.largeFileTokenThreshold ?? DEFAULTS.largeFileTokenThreshold,
-        maxHighImpactItems: config?.maxHighImpactItems ?? DEFAULTS.maxHighImpactItems,
-        showCostTable: config?.showCostTable ?? DEFAULTS.showCostTable,
-        pricingProfiles: config?.pricingProfiles ?? DEFAULTS.pricingProfiles,
-        commentFormat: config?.commentFormat ?? DEFAULTS.commentFormat,
-        ignorePaths: config?.ignorePaths ?? DEFAULTS.ignorePaths,
-        allowPaths: config?.allowPaths ?? DEFAULTS.allowPaths,
-        failOnSeverity: config?.failOnSeverity,
-        failAboveTokens: config?.failAboveTokens,
-        estimationMode: config?.estimationMode ?? DEFAULTS.estimationMode,
-        customRules: config?.customRules ?? DEFAULTS.customRules,
-        severityThresholds: resolveSeverityThresholds(config?.severityThresholds),
+        mode: config.mode ?? base.mode,
+        tokenThreshold: config.tokenThreshold ?? base.tokenThreshold,
+        largeFileTokenThreshold: config.largeFileTokenThreshold ?? base.largeFileTokenThreshold,
+        maxHighImpactItems: config.maxHighImpactItems ?? base.maxHighImpactItems,
+        showCostTable: config.showCostTable ?? base.showCostTable,
+        pricingProfiles: config.pricingProfiles ?? base.pricingProfiles,
+        commentFormat: config.commentFormat ?? base.commentFormat,
+        commentOnHygiene: config.commentOnHygiene ?? base.commentOnHygiene,
+        ignorePaths: config.ignorePaths ?? base.ignorePaths,
+        allowPaths: config.allowPaths ?? base.allowPaths,
+        failOnSeverity: config.failOnSeverity ?? base.failOnSeverity,
+        failAboveTokens: config.failAboveTokens ?? base.failAboveTokens,
+        failOnCategories: config.failOnCategories ?? base.failOnCategories,
+        warnOnlyCategories: config.warnOnlyCategories ?? base.warnOnlyCategories,
+        estimationMode: config.estimationMode ?? base.estimationMode,
+        customRules: config.customRules ?? base.customRules,
+        severityThresholds: resolveSeverityThresholds(config.severityThresholds ?? base.severityThresholds),
     };
+}
+function resolveSettings(config) {
+    const mode = config?.mode ?? 'advisory';
+    const preset = getModePreset(mode);
+    const base = {
+        mode,
+        tokenThreshold: preset.tokenThreshold ?? LEGACY_DEFAULTS.tokenThreshold,
+        largeFileTokenThreshold: preset.largeFileTokenThreshold ?? LEGACY_DEFAULTS.largeFileTokenThreshold,
+        maxHighImpactItems: preset.maxHighImpactItems ?? LEGACY_DEFAULTS.maxHighImpactItems,
+        showCostTable: preset.showCostTable ?? LEGACY_DEFAULTS.showCostTable,
+        pricingProfiles: preset.pricingProfiles ?? LEGACY_DEFAULTS.pricingProfiles,
+        commentFormat: preset.commentFormat ?? LEGACY_DEFAULTS.commentFormat,
+        commentOnHygiene: preset.commentOnHygiene ?? LEGACY_DEFAULTS.commentOnHygiene,
+        ignorePaths: preset.ignorePaths ?? LEGACY_DEFAULTS.ignorePaths,
+        allowPaths: preset.allowPaths ?? LEGACY_DEFAULTS.allowPaths,
+        failOnSeverity: preset.failOnSeverity,
+        failAboveTokens: preset.failAboveTokens,
+        failOnCategories: preset.failOnCategories ?? LEGACY_DEFAULTS.failOnCategories,
+        warnOnlyCategories: preset.warnOnlyCategories ?? LEGACY_DEFAULTS.warnOnlyCategories,
+        estimationMode: preset.estimationMode ?? LEGACY_DEFAULTS.estimationMode,
+        customRules: preset.customRules ?? LEGACY_DEFAULTS.customRules,
+        severityThresholds: resolveSeverityThresholds(preset.severityThresholds),
+    };
+    if (!config) {
+        return base;
+    }
+    return applyExplicitOverrides(base, config);
 }
 
 
@@ -35966,6 +36054,7 @@ function resolveSettings(config) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.analyzePullRequestFiles = analyzePullRequestFiles;
 exports.getHighImpactFiles = getHighImpactFiles;
+const categories_1 = __nccwpck_require__(2711);
 const paths_1 = __nccwpck_require__(6107);
 const rules_1 = __nccwpck_require__(1688);
 const tokens_1 = __nccwpck_require__(1129);
@@ -36020,7 +36109,128 @@ function analyzePullRequestFiles(files, options) {
     };
 }
 function getHighImpactFiles(analysis, maxItems) {
-    return analysis.files.filter((file) => file.category !== 'other').slice(0, maxItems);
+    const highImpact = analysis.files.filter((file) => file.category !== 'other');
+    return (0, categories_1.sortFilesByDisplayPriority)(highImpact).slice(0, maxItems);
+}
+
+
+/***/ }),
+
+/***/ 2711:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WARN_ONLY_CATEGORIES = exports.HARD_FAIL_CATEGORIES = void 0;
+exports.getCategoryNarrativeLabel = getCategoryNarrativeLabel;
+exports.sortFilesByDisplayPriority = sortFilesByDisplayPriority;
+/** Categories that indicate committed repo junk — strict mode fails on these. */
+exports.HARD_FAIL_CATEGORIES = [
+    'build-output',
+    'dependency-dir',
+    'coverage',
+    'cache-dir',
+    'test-output',
+    'log',
+    'source-map',
+    'minified',
+];
+/** Categories that are often intentional — warn in comments, never fail alone. */
+exports.WARN_ONLY_CATEGORIES = [
+    'lockfile',
+    'agent-config',
+    'generated',
+    'snapshot',
+];
+const DISPLAY_PRIORITY = {
+    'agent-config': 0,
+    'dependency-dir': 1,
+    'build-output': 2,
+    coverage: 3,
+    generated: 4,
+    lockfile: 10,
+    snapshot: 11,
+    fixture: 12,
+    log: 5,
+    minified: 6,
+    'source-map': 7,
+    vendor: 8,
+    'cache-dir': 9,
+    'test-output': 5,
+    'binary-asset': 13,
+    openapi: 14,
+    protobuf: 15,
+    'large-file': 16,
+    other: 99,
+};
+const NARRATIVE_LABELS = {
+    generated: 'generated output',
+    coverage: 'coverage artifacts',
+    'build-output': 'build artifacts',
+    lockfile: 'lockfile churn',
+    'agent-config': 'agent instruction changes',
+    snapshot: 'snapshot changes',
+    log: 'log files',
+    minified: 'minified assets',
+    'source-map': 'source maps',
+    vendor: 'vendored dependencies',
+    'dependency-dir': 'dependency directories',
+    'cache-dir': 'cache directories',
+    'test-output': 'test output',
+    fixture: 'large fixtures',
+    'binary-asset': 'binary assets',
+    openapi: 'OpenAPI/generated API clients',
+    protobuf: 'protobuf generated files',
+    'large-file': 'large file changes',
+};
+function getCategoryDisplayPriority(category) {
+    return DISPLAY_PRIORITY[category] ?? 50;
+}
+function getCategoryNarrativeLabel(category) {
+    return NARRATIVE_LABELS[category] ?? category;
+}
+function sortFilesByDisplayPriority(files) {
+    return [...files].sort((a, b) => {
+        const priorityDiff = getCategoryDisplayPriority(a.category) - getCategoryDisplayPriority(b.category);
+        if (priorityDiff !== 0) {
+            return priorityDiff;
+        }
+        return b.estimatedTokens - a.estimatedTokens;
+    });
+}
+
+
+/***/ }),
+
+/***/ 1148:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.shouldPostComment = shouldPostComment;
+const analyze_1 = __nccwpck_require__(3127);
+const severity_1 = __nccwpck_require__(432);
+function shouldPostComment(analysis, settings) {
+    if (analysis.files.length === 0) {
+        return false;
+    }
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, analysis.files.length);
+    if (settings.mode === 'minimal') {
+        const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, settings.severityThresholds);
+        return (0, severity_1.severityMeetsThreshold)(riskLevel, 'high');
+    }
+    if (analysis.totalEstimatedTokens >= settings.tokenThreshold) {
+        return true;
+    }
+    if (highImpact.some((file) => file.category === 'agent-config')) {
+        return settings.mode !== 'legacy';
+    }
+    if (settings.commentOnHygiene && highImpact.length > 0) {
+        return true;
+    }
+    return false;
 }
 
 
@@ -36054,7 +36264,30 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.shouldFailRun = shouldFailRun;
 const analyze_1 = __nccwpck_require__(3127);
 const severity_1 = __nccwpck_require__(432);
+function getMatchingCategories(analysis, categories) {
+    if (categories.length === 0) {
+        return [];
+    }
+    const categorySet = new Set(categories);
+    const matched = new Set();
+    for (const file of analysis.files) {
+        if (categorySet.has(file.category)) {
+            matched.add(file.category);
+        }
+    }
+    return [...matched];
+}
 function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
+    if (settings.failOnCategories && settings.failOnCategories.length > 0) {
+        const matched = getMatchingCategories(analysis, settings.failOnCategories);
+        const hardMatches = matched.filter((category) => !settings.warnOnlyCategories?.includes(category));
+        if (hardMatches.length > 0) {
+            return {
+                fail: true,
+                reason: `Diff includes forbidden context categories: ${hardMatches.join(', ')}.`,
+            };
+        }
+    }
     if (settings.failAboveTokens !== undefined) {
         if (analysis.totalEstimatedTokens > settings.failAboveTokens) {
             return {
@@ -36065,7 +36298,7 @@ function shouldFailRun(analysis, settings, maxHighImpactItems = 5) {
     }
     if (settings.failOnSeverity !== undefined) {
         const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, maxHighImpactItems);
-        const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
+        const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, settings.severityThresholds);
         if ((0, severity_1.severityMeetsThreshold)(riskLevel, settings.failOnSeverity)) {
             return {
                 fail: true,
@@ -36437,6 +36670,7 @@ exports.RISK_LEVEL_EMOJI = void 0;
 exports.severityMeetsThreshold = severityMeetsThreshold;
 exports.getRiskLevel = getRiskLevel;
 exports.formatRiskLevel = formatRiskLevel;
+exports.getHighImpactCategories = getHighImpactCategories;
 const defaults_1 = __nccwpck_require__(5553);
 const SEVERITY_RANK = {
     Low: 0,
@@ -36454,22 +36688,151 @@ function severityMeetsThreshold(actual, threshold) {
     const thresholdRank = threshold === 'low' ? 0 : threshold === 'medium' ? 1 : threshold === 'high' ? 2 : 3;
     return SEVERITY_RANK[actual] >= thresholdRank;
 }
-function getRiskLevel(totalTokens, highImpactCount, thresholds = defaults_1.DEFAULT_SEVERITY_THRESHOLDS) {
-    if (totalTokens >= thresholds.criticalTokens ||
-        highImpactCount >= thresholds.criticalHighImpactCount) {
+function countHardHighImpact(highImpact) {
+    return highImpact.filter((file) => file.category !== 'lockfile' && file.category !== 'agent-config').length;
+}
+function getRiskLevel(totalTokens, highImpact, thresholds = defaults_1.DEFAULT_SEVERITY_THRESHOLDS) {
+    const hardCount = countHardHighImpact(highImpact);
+    const hasAgentConfig = highImpact.some((file) => file.category === 'agent-config');
+    const onlySoftCategories = highImpact.length > 0 && hardCount === 0;
+    if (totalTokens >= thresholds.criticalTokens || hardCount >= thresholds.criticalHighImpactCount) {
         return 'Critical';
     }
-    if (totalTokens >= thresholds.highTokens || highImpactCount >= thresholds.highHighImpactCount) {
+    if (totalTokens >= thresholds.highTokens || hardCount >= thresholds.highHighImpactCount) {
         return 'High';
     }
-    if (totalTokens >= thresholds.mediumTokens ||
-        highImpactCount >= thresholds.mediumHighImpactCount) {
+    if (hasAgentConfig) {
+        return 'Medium';
+    }
+    if (onlySoftCategories) {
+        return totalTokens >= thresholds.mediumTokens ? 'Medium' : 'Low';
+    }
+    if (totalTokens >= thresholds.mediumTokens || hardCount >= thresholds.mediumHighImpactCount) {
         return 'Medium';
     }
     return 'Low';
 }
 function formatRiskLevel(riskLevel) {
     return `${exports.RISK_LEVEL_EMOJI[riskLevel]} ${riskLevel}`;
+}
+function getHighImpactCategories(highImpact) {
+    const seen = new Set();
+    const categories = [];
+    for (const file of highImpact) {
+        if (file.category === 'other' || seen.has(file.category)) {
+            continue;
+        }
+        seen.add(file.category);
+        categories.push(file.category);
+    }
+    return categories;
+}
+
+
+/***/ }),
+
+/***/ 1363:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildReviewSummary = buildReviewSummary;
+exports.getPrioritizedFindings = getPrioritizedFindings;
+const categories_1 = __nccwpck_require__(2711);
+const CRITICAL_CATEGORIES = new Set([
+    'dependency-dir',
+    'build-output',
+    'coverage',
+    'cache-dir',
+    'test-output',
+]);
+const NOISY_CATEGORIES = new Set([
+    'generated',
+    'lockfile',
+    'agent-config',
+    'snapshot',
+    'log',
+    'minified',
+    'source-map',
+    'vendor',
+    'openapi',
+    'protobuf',
+    'fixture',
+    'large-file',
+]);
+function uniqueCategories(files) {
+    const seen = new Set();
+    const ordered = [];
+    for (const file of (0, categories_1.sortFilesByDisplayPriority)(files)) {
+        if (file.category === 'other' || seen.has(file.category)) {
+            continue;
+        }
+        seen.add(file.category);
+        ordered.push(file.category);
+    }
+    return ordered;
+}
+function deriveExpectation(categories) {
+    if (categories.some((category) => CRITICAL_CATEGORIES.has(category))) {
+        return 'critical';
+    }
+    if (categories.some((category) => NOISY_CATEGORIES.has(category))) {
+        return 'noisy';
+    }
+    return 'quiet';
+}
+function formatCategoryList(categories) {
+    const labels = categories.map((category) => (0, categories_1.getCategoryNarrativeLabel)(category));
+    if (labels.length === 0) {
+        return '';
+    }
+    if (labels.length === 1) {
+        return labels[0] ?? '';
+    }
+    if (labels.length === 2) {
+        return `${labels[0]} and ${labels[1]}`;
+    }
+    return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
+}
+function buildHeadline(categories, expectation) {
+    if (categories.length === 0) {
+        return 'This diff looks context-light for agent-assisted review.';
+    }
+    const list = formatCategoryList(categories);
+    const hasAgentConfig = categories.includes('agent-config');
+    if (expectation === 'critical') {
+        if (hasAgentConfig) {
+            return `This PR adds ${list} — expect a noisy agent review. Agent instructions also changed.`;
+        }
+        return `This PR adds ${list} — expect a noisy agent review.`;
+    }
+    if (expectation === 'noisy') {
+        if (hasAgentConfig && categories.length > 1) {
+            const withoutAgent = categories.filter((c) => c !== 'agent-config');
+            const mainList = formatCategoryList(withoutAgent);
+            return `This PR adds ${mainList}; agent instructions also changed — expect a noisier agent review.`;
+        }
+        return `This PR adds ${list} — agent-assisted review may be noisier than usual.`;
+    }
+    return `This diff adds ${list}.`;
+}
+function buildReviewSummary(analysis) {
+    const hygieneFiles = analysis.files.filter((file) => file.category !== 'other');
+    const categories = uniqueCategories(hygieneFiles);
+    const expectation = deriveExpectation(categories);
+    return {
+        headline: buildHeadline(categories, expectation),
+        categories,
+        expectation,
+    };
+}
+function getPrioritizedFindings(analysis, maxItems) {
+    const highImpact = analysis.files.filter((file) => file.category !== 'other');
+    if (highImpact.length === 0) {
+        return analysis.files.slice(0, maxItems);
+    }
+    return (0, categories_1.sortFilesByDisplayPriority)(highImpact).slice(0, maxItems);
 }
 
 
@@ -36481,7 +36844,6 @@ function formatRiskLevel(riskLevel) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.extractAddedTextFromPatch = extractAddedTextFromPatch;
 exports.countAddedCharsInPatch = countAddedCharsInPatch;
 exports.estimateTokensFromText = estimateTokensFromText;
 exports.estimateTokensFromPatch = estimateTokensFromPatch;
@@ -36585,12 +36947,13 @@ exports.CONTEXT_CATEGORIES = [
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMMENT_MARKER = void 0;
 exports.buildSuggestions = buildSuggestions;
-exports.formatPricingCostSection = formatPricingCostSection;
 exports.formatComment = formatComment;
+const settings_1 = __nccwpck_require__(4661);
 const analyze_1 = __nccwpck_require__(3127);
 const indexing_1 = __nccwpck_require__(4615);
 const pricing_1 = __nccwpck_require__(7577);
 const severity_1 = __nccwpck_require__(432);
+const summary_1 = __nccwpck_require__(1363);
 const shared_1 = __nccwpck_require__(9830);
 exports.COMMENT_MARKER = '<!-- contextlevy -->';
 const COMPACT_RISK_LEVEL_EMOJI = {
@@ -36656,19 +37019,8 @@ function buildSuggestions(analysis) {
 function formatFindingCell(filename, label) {
     return `${formatInlineCodeInTable(filename)}<br/>${escapeMarkdownTableCell(label)}`;
 }
-function formatShortPath(filename) {
-    const parts = filename.split('/');
-    if (parts.length <= 2) {
-        return filename;
-    }
-    return parts.slice(-2).join('/');
-}
 function getFindings(analysis, maxItems) {
-    const rows = (0, analyze_1.getHighImpactFiles)(analysis, maxItems);
-    if (rows.length > 0) {
-        return rows;
-    }
-    return analysis.files.slice(0, maxItems);
+    return (0, summary_1.getPrioritizedFindings)(analysis, maxItems);
 }
 function formatCompactFindings(files, maxItems) {
     const limit = Math.min(maxItems, shared_1.COMPACT_MAX_FINDINGS);
@@ -36676,30 +37028,12 @@ function formatCompactFindings(files, maxItems) {
     if (shown.length === 0) {
         return null;
     }
-    const parts = shown.map((file) => `\`${escapeMarkdownTableCell(formatShortPath(file.filename))}\` **+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)}**`);
+    const parts = shown.map((file) => `\`${escapeMarkdownTableCell((0, shared_1.formatShortPath)(file.filename))}\` **+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)}**`);
     const remaining = files.length - shown.length;
     if (remaining > 0) {
         parts.push(`**+${remaining} more**`);
     }
     return parts.join(' · ');
-}
-function formatCompactFixSuggestion(suggestion) {
-    if (/keep build output out of version control/i.test(suggestion)) {
-        return 'remove build output';
-    }
-    if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
-        return 'add `coverage/` to `.gitignore`';
-    }
-    if (/avoid committing generated output unless required/i.test(suggestion)) {
-        return 'avoid generated output';
-    }
-    if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
-        return 'add logs to `.gitignore`';
-    }
-    if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
-        return 'exclude artifacts from agent indexing';
-    }
-    return suggestion.replace(/\.$/, '');
 }
 function formatCompactFixLine(suggestions) {
     if (suggestions.length === 0) {
@@ -36707,7 +37041,7 @@ function formatCompactFixLine(suggestions) {
     }
     return suggestions
         .slice(0, shared_1.COMPACT_MAX_SUGGESTIONS)
-        .map((suggestion) => formatCompactFixSuggestion(suggestion))
+        .map((suggestion) => (0, shared_1.shortenFixSuggestion)(suggestion))
         .join(' · ');
 }
 function formatCompactCostRange(totalEstimatedTokens, pricingProfiles) {
@@ -36723,9 +37057,10 @@ function formatCompactCostRange(totalEstimatedTokens, pricingProfiles) {
     return `**Worst-case input cost:** ~${(0, shared_1.formatUsd)(min)}–${(0, shared_1.formatUsd)(max)}/session`;
 }
 function formatCompactComment(analysis, options) {
-    const severityThresholds = (0, shared_1.resolveSeverityThresholds)(options);
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
-    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
+    const severityThresholds = (0, settings_1.resolveSeverityThresholds)(options.severityThresholds);
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, analysis.files.length);
+    const reviewSummary = (0, summary_1.buildReviewSummary)(analysis);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, severityThresholds);
     const findings = getFindings(analysis, options.maxHighImpactItems);
     const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
     const costLine = options.showCostTable
@@ -36733,7 +37068,11 @@ function formatCompactComment(analysis, options) {
         : null;
     const fixLine = formatCompactFixLine(buildSuggestions(analysis));
     const quoteLines = [
-        `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)} · **+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated context tokens**`,
+        `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)}`,
+        '',
+        reviewSummary.headline,
+        '',
+        `**+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated context tokens**`,
         '',
     ];
     if (findingsLine) {
@@ -36768,7 +37107,7 @@ function formatPricingCostSection(totalEstimatedTokens, pricingProfiles) {
     });
     return [
         '**Estimated worst-case input cost if read by an agent**',
-        '_Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included._',
+        '_Illustrative only — agents may not read every changed file. Not billing-grade._',
         '',
         '| Pricing profile | Est. input cost (±50%) |',
         '|---|---:|',
@@ -36782,9 +37121,10 @@ function formatComment(analysis, options) {
     return formatDefaultComment(analysis, options);
 }
 function formatDefaultComment(analysis, options) {
-    const severityThresholds = (0, shared_1.resolveSeverityThresholds)(options);
-    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, options.maxHighImpactItems);
-    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, severityThresholds);
+    const severityThresholds = (0, settings_1.resolveSeverityThresholds)(options.severityThresholds);
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, analysis.files.length);
+    const reviewSummary = (0, summary_1.buildReviewSummary)(analysis);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, severityThresholds);
     const suggestions = buildSuggestions(analysis);
     const suggestionLines = suggestions.length > 0
         ? suggestions.map((s) => `- ${s}`).join('\n')
@@ -36792,9 +37132,9 @@ function formatDefaultComment(analysis, options) {
     const sections = [
         '🤖 **ContextLevy**',
         '',
-        `This PR adds **~${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
+        reviewSummary.headline,
         '',
-        `**Risk level:** ${(0, severity_1.formatRiskLevel)(riskLevel)}`,
+        `**Risk level:** ${(0, severity_1.formatRiskLevel)(riskLevel)} · **~${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} estimated context tokens**`,
         '',
         formatContextTable(analysis, options.maxHighImpactItems),
     ];
@@ -36809,17 +37149,17 @@ function formatDefaultComment(analysis, options) {
 /***/ }),
 
 /***/ 9830:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMPACT_MAX_SUGGESTIONS = exports.COMPACT_MAX_FINDINGS = void 0;
 exports.formatCompactTokens = formatCompactTokens;
-exports.resolveSeverityThresholds = resolveSeverityThresholds;
+exports.formatShortPath = formatShortPath;
+exports.shortenFixSuggestion = shortenFixSuggestion;
 exports.formatCostRange = formatCostRange;
 exports.formatUsd = formatUsd;
-const defaults_1 = __nccwpck_require__(5553);
 exports.COMPACT_MAX_FINDINGS = 3;
 exports.COMPACT_MAX_SUGGESTIONS = 2;
 function formatCompactTokens(value) {
@@ -36828,8 +37168,36 @@ function formatCompactTokens(value) {
     }
     return value.toLocaleString('en-US');
 }
-function resolveSeverityThresholds(options) {
-    return options.severityThresholds ?? defaults_1.DEFAULT_SEVERITY_THRESHOLDS;
+function formatShortPath(filename) {
+    const parts = filename.split('/');
+    if (parts.length <= 2) {
+        return filename;
+    }
+    return parts.slice(-2).join('/');
+}
+function shortenFixSuggestion(suggestion) {
+    if (/keep build output out of version control/i.test(suggestion)) {
+        return 'remove build output';
+    }
+    if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add `coverage/` to `.gitignore`';
+    }
+    if (/add coverage\/ to \.gitignore/i.test(suggestion)) {
+        return 'add `coverage/` to `.gitignore`';
+    }
+    if (/avoid committing generated output unless required/i.test(suggestion)) {
+        return 'avoid generated output';
+    }
+    if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
+        return 'add logs to `.gitignore`';
+    }
+    if (/add \*\.log and logs\/ to \.gitignore/i.test(suggestion)) {
+        return 'add logs to `.gitignore`';
+    }
+    if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
+        return 'exclude artifacts from agent indexing';
+    }
+    return suggestion.replace(/\.$/, '');
 }
 function formatCostRange(cost) {
     const low = cost * 0.5;
@@ -36892,7 +37260,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.normalizePrivateKey = normalizePrivateKey;
 exports.readAppCredentials = readAppCredentials;
-exports.assertValidAppId = assertValidAppId;
 exports.createAppInstallationToken = createAppInstallationToken;
 exports.resolveGithubToken = resolveGithubToken;
 const core = __importStar(__nccwpck_require__(7484));
@@ -37241,6 +37608,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const load_1 = __nccwpck_require__(1036);
 const settings_1 = __nccwpck_require__(4661);
 const analyze_1 = __nccwpck_require__(3127);
+const comment_gate_1 = __nccwpck_require__(1148);
 const fail_1 = __nccwpck_require__(5719);
 const comment_1 = __nccwpck_require__(5758);
 const auth_1 = __nccwpck_require__(4921);
@@ -37303,14 +37671,16 @@ async function run() {
     const failDecision = (0, fail_1.shouldFailRun)(analysis, {
         failOnSeverity: settings.failOnSeverity,
         failAboveTokens: settings.failAboveTokens,
+        failOnCategories: settings.failOnCategories,
+        warnOnlyCategories: settings.warnOnlyCategories,
         severityThresholds: settings.severityThresholds,
     }, settings.maxHighImpactItems);
     await (0, summary_1.writeJobSummary)(analysis, settings, failDecision);
     if (failDecision.fail) {
         core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
     }
-    if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
-        core.info(`Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`);
+    if (!(0, comment_gate_1.shouldPostComment)(analysis, settings)) {
+        core.info('Comment thresholds not met — no comment posted.');
         return;
     }
     const body = (0, comment_1.formatComment)(analysis, {
@@ -37394,12 +37764,16 @@ exports.writeJobSummary = writeJobSummary;
 const core = __importStar(__nccwpck_require__(7484));
 const analyze_1 = __nccwpck_require__(3127);
 const severity_1 = __nccwpck_require__(432);
+const summary_1 = __nccwpck_require__(1363);
 const shared_1 = __nccwpck_require__(9830);
 async function writeJobSummary(analysis, settings, failDecision) {
     const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, settings.maxHighImpactItems);
-    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact.length, settings.severityThresholds);
+    const reviewSummary = (0, summary_1.buildReviewSummary)(analysis);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, settings.severityThresholds);
     const summary = core.summary
         .addHeading('ContextLevy')
+        .addRaw(reviewSummary.headline)
+        .addEOL()
         .addRaw(`Estimated **+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)}** net-new context tokens across **${analysis.files.length}** analyzed file(s).`)
         .addEOL()
         .addRaw(`**Risk level:** ${(0, severity_1.formatRiskLevel)(riskLevel)}`)

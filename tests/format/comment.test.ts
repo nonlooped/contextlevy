@@ -56,8 +56,8 @@ describe('formatComment', () => {
     const body = formatComment(analysis, defaultCommentOptions);
 
     expect(body).toContain('🤖 **ContextLevy**');
-    expect(body).toContain('**~37.9k estimated net-new AI-context tokens**');
-    expect(body).toContain('**Risk level:** 🔴 High');
+    expect(body).toContain('expect a noisy agent review');
+    expect(body).toContain('**Risk level:** 🔴 High · **~37.9k estimated context tokens**');
     expect(body).toContain('| Added | Finding |');
     expect(body).toContain(
       '| **+32.0k** | `examples/high-impact-pr/coverage/lcov.info`<br/>Coverage output is usually noisy and should not be committed. |',
@@ -66,7 +66,7 @@ describe('formatComment', () => {
       '| **+5.8k** | `examples/high-impact-pr/prisma/generated/client.ts`<br/>Generated code is usually low-value context for coding agents. |',
     );
     expect(body).toContain('**Estimated worst-case input cost if read by an agent**');
-    expect(body).toContain('Estimates may vary ±50% depending on model tokenizer');
+    expect(body).toContain('Illustrative only — agents may not read every changed file');
     expect(body).toContain('| Pricing profile | Est. input cost (±50%) |');
     expect(body).toContain('| GPT-5.5 |');
     expect(body).toMatch(/\$0\.\d{2}–\$0\.\d{2}\/session \|/);
@@ -120,7 +120,11 @@ describe('formatComment', () => {
     expect(body).toBe(
       [
         COMMENT_MARKER,
-        '> 🤖 **ContextLevy** · 🔴 **High** · **+37.9k estimated context tokens**',
+        '> 🤖 **ContextLevy** · 🔴 **High**',
+        '>',
+        '> This PR adds coverage artifacts and generated output — expect a noisy agent review.',
+        '>',
+        '> **+37.9k estimated context tokens**',
         '>',
         '> `coverage/lcov.info` **+32.0k** · `generated/client.ts` **+5.8k**',
         '>',

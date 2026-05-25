@@ -1,7 +1,9 @@
 import chalk from 'chalk';
+import { resolveSeverityThresholds } from '../config/settings';
 import { getHighImpactFiles } from '../core/analyze';
 import { estimateSessionCost } from '../core/pricing';
 import { getRiskLevel } from '../core/severity';
+import { buildReviewSummary, getPrioritizedFindings } from '../core/summary';
 import type {
   CommentOptions,
   FileAnalysis,
@@ -14,8 +16,9 @@ import {
   COMPACT_MAX_SUGGESTIONS,
   formatCompactTokens,
   formatCostRange,
+  formatShortPath,
   formatUsd,
-  resolveSeverityThresholds,
+  shortenFixSuggestion,
 } from './shared';
 
 const RISK_COLORS = {
@@ -38,20 +41,8 @@ function renderInlineMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, (_, value: string) => chalk.cyan(value));
 }
 
-function formatShortPath(filename: string): string {
-  const parts = filename.split('/');
-  if (parts.length <= 2) {
-    return filename;
-  }
-  return parts.slice(-2).join('/');
-}
-
 function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnalysis[] {
-  const rows = getHighImpactFiles(analysis, maxItems);
-  if (rows.length > 0) {
-    return rows;
-  }
-  return analysis.files.slice(0, maxItems);
+  return getPrioritizedFindings(analysis, maxItems);
 }
 
 function formatRiskBadge(riskLevel: ReturnType<typeof getRiskLevel>, boldLabel = false): string {
@@ -136,23 +127,7 @@ function formatSuggestions(suggestions: string[]): string {
 }
 
 function formatCompactFixSuggestion(suggestion: string): string {
-  if (/keep build output out of version control/i.test(suggestion)) {
-    return 'remove build output';
-  }
-  if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
-    return 'add coverage/ to .gitignore';
-  }
-  if (/avoid committing generated output unless required/i.test(suggestion)) {
-    return 'avoid generated output';
-  }
-  if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
-    return 'add logs to .gitignore';
-  }
-  if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
-    return 'exclude artifacts from agent indexing';
-  }
-
-  return suggestion.replace(/`/g, '').replace(/\.$/, '');
+  return shortenFixSuggestion(suggestion).replace(/`/g, '');
 }
 
 function formatCompactFindings(files: FileAnalysis[], maxItems: number): string | null {
@@ -200,22 +175,20 @@ function formatCompactCostRange(
 export function formatTerminalDefault(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
+  meta?: { baseRef?: string; configFound?: boolean },
 ): string {
-  const severityThresholds = resolveSeverityThresholds(options);
-  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(
-    analysis.totalEstimatedTokens,
-    highImpact.length,
-    severityThresholds,
-  );
+  const severityThresholds = resolveSeverityThresholds(options.severityThresholds);
+  const highImpact = getHighImpactFiles(analysis, analysis.files.length);
+  const reviewSummary = buildReviewSummary(analysis);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact, severityThresholds);
   const suggestions = buildSuggestions(analysis);
 
   const sections = [
     `${chalk.bold('🤖 ContextLevy')}`,
     '',
-    `This diff adds ${chalk.bold(`~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens`)}.`,
+    reviewSummary.headline,
     '',
-    `${chalk.bold('Risk level:')} ${formatRiskBadge(riskLevel)}`,
+    `${chalk.bold('Risk level:')} ${formatRiskBadge(riskLevel)} · ${chalk.bold(`~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`)}`,
     '',
     chalk.bold('Findings'),
     formatFindingsTable(analysis, options.maxHighImpactItems),
@@ -236,20 +209,29 @@ export function formatTerminalDefault(
     chalk.dim('ContextLevy runs locally and does not send code to an external API.'),
   );
 
+  if (meta?.baseRef) {
+    sections.push(
+      '',
+      chalk.dim(`Scanned ${analysis.files.length} changed file(s) against ${meta.baseRef}.`),
+    );
+  }
+
+  if (meta?.configFound === false) {
+    sections.push(chalk.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
+  }
+
   return sections.join('\n');
 }
 
 export function formatTerminalCompact(
   analysis: PullRequestAnalysis,
   options: CommentOptions,
+  meta?: { baseRef?: string; configFound?: boolean },
 ): string {
-  const severityThresholds = resolveSeverityThresholds(options);
-  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(
-    analysis.totalEstimatedTokens,
-    highImpact.length,
-    severityThresholds,
-  );
+  const severityThresholds = resolveSeverityThresholds(options.severityThresholds);
+  const highImpact = getHighImpactFiles(analysis, analysis.files.length);
+  const reviewSummary = buildReviewSummary(analysis);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact, severityThresholds);
   const findings = getFindings(analysis, options.maxHighImpactItems);
   const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
   const costLine = options.showCostTable
@@ -260,13 +242,17 @@ export function formatTerminalCompact(
     .map((suggestion) => formatCompactFixSuggestion(suggestion))
     .join(chalk.dim(' · '));
 
-  const header = [
-    chalk.bold('🤖 ContextLevy'),
-    formatRiskBadge(riskLevel, true),
-    chalk.bold(`+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`),
-  ].join(chalk.dim(' · '));
+  const header = [chalk.bold('🤖 ContextLevy'), formatRiskBadge(riskLevel, true)].join(
+    chalk.dim(' · '),
+  );
 
-  const lines = [header];
+  const lines = [
+    header,
+    '',
+    reviewSummary.headline,
+    '',
+    chalk.bold(`+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`),
+  ];
 
   if (findingsLine) {
     lines.push('', `  ${findingsLine}`);
@@ -285,6 +271,10 @@ export function formatTerminalCompact(
   }
 
   lines.push('', chalk.dim('Estimated context risk only. Agents may not read every changed file.'));
+
+  if (meta?.configFound === false) {
+    lines.push(chalk.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
+  }
 
   return lines.join('\n');
 }

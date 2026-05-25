@@ -1,3 +1,5 @@
+# Dogfood config — explicit legacy mode preserves pre-v2.4 comment/cost defaults
+mode: legacy
 token-threshold: 500
 comment-format: default
 pricing-profiles:

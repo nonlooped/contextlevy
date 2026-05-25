@@ -4,6 +4,7 @@ import { loadConfigFile } from '../config/load';
 import { resolveSettings } from '../config/settings';
 import type { ContextLevyConfig } from '../config/types';
 import { analyzePullRequestFiles } from '../core/analyze';
+import { shouldPostComment } from '../core/comment-gate';
 import { shouldFailRun } from '../core/fail';
 import { formatComment } from '../format/comment';
 import { resolveGithubToken } from './auth';
@@ -87,6 +88,8 @@ export async function run(): Promise<void> {
     {
       failOnSeverity: settings.failOnSeverity,
       failAboveTokens: settings.failAboveTokens,
+      failOnCategories: settings.failOnCategories,
+      warnOnlyCategories: settings.warnOnlyCategories,
       severityThresholds: settings.severityThresholds,
     },
     settings.maxHighImpactItems,
@@ -98,10 +101,8 @@ export async function run(): Promise<void> {
     core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
   }
 
-  if (analysis.totalEstimatedTokens < settings.tokenThreshold) {
-    core.info(
-      `Estimated tokens (${analysis.totalEstimatedTokens}) below threshold (${settings.tokenThreshold}) — no comment posted.`,
-    );
+  if (!shouldPostComment(analysis, settings)) {
+    core.info('Comment thresholds not met — no comment posted.');
     return;
   }
 

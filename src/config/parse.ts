@@ -9,11 +9,38 @@ import {
   type PricingProfile,
   type SeverityThresholds,
 } from '../core/types';
-import type { ContextLevyConfig } from './types';
+import type { ContextLevyConfig, ContextLevyMode } from './types';
+
+const MODES: ContextLevyMode[] = ['advisory', 'strict', 'minimal', 'legacy'];
 
 const SEVERITY_LEVELS = ['low', 'medium', 'high', 'critical'] as const;
 
 const ESTIMATION_MODES: EstimationMode[] = ['simple', 'tokenizer'];
+
+function parseMode(value: unknown, fieldName: string): ContextLevyMode | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be one of: advisory, strict, minimal, legacy.`);
+  }
+  const normalized = value.trim().toLowerCase() as ContextLevyMode;
+  if (!MODES.includes(normalized)) {
+    throw new Error(`${fieldName} must be one of: advisory, strict, minimal, legacy.`);
+  }
+  return normalized;
+}
+
+function parseContextCategoryArray(
+  value: unknown,
+  fieldName: string,
+): ContextCategory[] | undefined {
+  const entries = readStringArray(value, fieldName);
+  if (!entries) {
+    return undefined;
+  }
+  return entries.map((entry, index) => parseContextCategory(entry, `${fieldName}[${index}]`));
+}
 
 function readConfigValue(
   record: Record<string, unknown>,
@@ -95,7 +122,7 @@ function readOptionalBoolean(value: unknown, fieldName: string): boolean | undef
   throw new Error(`${fieldName} must be a boolean.`);
 }
 
-export function parseCommentFormat(value: unknown, fieldName: string): CommentFormat | undefined {
+function parseCommentFormat(value: unknown, fieldName: string): CommentFormat | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
@@ -129,7 +156,7 @@ function readProfileName(record: Record<string, unknown>, index: number): string
   return name.trim();
 }
 
-export function parsePricingProfilesValue(value: unknown): PricingProfile[] {
+function parsePricingProfilesValue(value: unknown): PricingProfile[] {
   if (!Array.isArray(value)) {
     throw new Error('pricing-profiles must be an array.');
   }
@@ -188,7 +215,7 @@ function parseContextCategory(value: unknown, fieldName: string): ContextCategor
   return normalized;
 }
 
-export function parseEstimationMode(value: unknown, fieldName: string): EstimationMode | undefined {
+function parseEstimationMode(value: unknown, fieldName: string): EstimationMode | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
@@ -204,7 +231,7 @@ export function parseEstimationMode(value: unknown, fieldName: string): Estimati
   return normalized;
 }
 
-export function parseCustomRulesValue(value: unknown): CustomRule[] {
+function parseCustomRulesValue(value: unknown): CustomRule[] {
   if (!Array.isArray(value)) {
     throw new Error('custom-rules must be an array.');
   }
@@ -254,7 +281,7 @@ export function parseCustomRulesValue(value: unknown): CustomRule[] {
   });
 }
 
-export function parseSeverityThresholdsValue(value: unknown): Partial<SeverityThresholds> {
+function parseSeverityThresholdsValue(value: unknown): Partial<SeverityThresholds> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('severity-thresholds must be an object.');
   }
@@ -301,7 +328,7 @@ export function parseSeverityThresholdsValue(value: unknown): Partial<SeverityTh
   return thresholds;
 }
 
-export function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
+function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyConfig {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error(`${sourcePath} must contain a JSON or YAML object.`);
   }
@@ -315,7 +342,12 @@ export function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyCo
     'severity-thresholds',
   );
 
+  const allowPathsRaw =
+    readConfigValue(record, 'allowPaths', 'allow-paths') ??
+    readConfigValue(record, 'allowlistPaths', 'allowlist-paths');
+
   const config: ContextLevyConfig = {
+    mode: parseMode(readConfigValue(record, 'mode', 'mode'), 'mode'),
     tokenThreshold: readOptionalInteger(
       readConfigValue(record, 'tokenThreshold', 'token-threshold'),
       'token-threshold',
@@ -336,14 +368,15 @@ export function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyCo
       readConfigValue(record, 'commentFormat', 'comment-format'),
       'comment-format',
     ),
+    commentOnHygiene: readOptionalBoolean(
+      readConfigValue(record, 'commentOnHygiene', 'comment-on-hygiene'),
+      'comment-on-hygiene',
+    ),
     ignorePaths: readStringArray(
       readConfigValue(record, 'ignorePaths', 'ignore-paths'),
       'ignore-paths',
     ),
-    allowPaths: readStringArray(
-      readConfigValue(record, 'allowPaths', 'allow-paths'),
-      'allow-paths',
-    ),
+    allowPaths: readStringArray(allowPathsRaw, 'allow-paths'),
     failOnSeverity: parseSeverityLevel(
       readConfigValue(record, 'failOnSeverity', 'fail-on-severity'),
       'fail-on-severity',
@@ -351,6 +384,14 @@ export function normalizeConfig(raw: unknown, sourcePath: string): ContextLevyCo
     failAboveTokens: readOptionalInteger(
       readConfigValue(record, 'failAboveTokens', 'fail-above-tokens'),
       'fail-above-tokens',
+    ),
+    failOnCategories: parseContextCategoryArray(
+      readConfigValue(record, 'failOnCategories', 'fail-on-categories'),
+      'fail-on-categories',
+    ),
+    warnOnlyCategories: parseContextCategoryArray(
+      readConfigValue(record, 'warnOnlyCategories', 'warn-only-categories'),
+      'warn-only-categories',
     ),
     estimationMode: parseEstimationMode(
       readConfigValue(record, 'estimationMode', 'estimation-mode'),

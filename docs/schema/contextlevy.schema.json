@@ -6,10 +6,22 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["advisory", "strict", "minimal", "legacy"],
+      "default": "advisory",
+      "description": "Preset: advisory (default), strict (fail on junk), minimal (high severity only), legacy (v2.3 defaults)."
+    },
+    "comment-on-hygiene": {
+      "type": "boolean",
+      "default": true,
+      "description": "Post PR comments when hygiene categories are present, even below token-threshold."
+    },
+    "commentOnHygiene": { "type": "boolean" },
     "token-threshold": {
       "type": "integer",
       "minimum": 0,
-      "description": "Skip PR comments below this estimated token total."
+      "description": "Skip PR comments below this estimated token total (unless comment-on-hygiene matches)."
     },
     "tokenThreshold": { "$ref": "#/$defs/nonNegativeInteger" },
     "large-file-token-threshold": {
@@ -57,11 +69,37 @@
     "allow-paths": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "default": []
+      "description": "Allowlist for intentional generated/output paths — counted but not flagged."
     },
     "allowPaths": {
       "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Allowlist for intentional generated/output paths — counted but not flagged."
+    },
+    "allowlist-paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Alias for allow-paths — intentional generated/output allowlist."
+    },
+    "allowlistPaths": {
+      "type": "array",
       "items": { "type": "string", "minLength": 1 }
+    },
+    "fail-on-categories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contextCategory" }
+    },
+    "failOnCategories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contextCategory" }
+    },
+    "warn-only-categories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contextCategory" }
+    },
+    "warnOnlyCategories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contextCategory" }
     },
     "fail-on-severity": {
       "type": "string",
@@ -101,6 +139,30 @@
       "type": "integer",
       "minimum": 1
     },
+    "contextCategory": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "coverage",
+        "lockfile",
+        "build-output",
+        "log",
+        "snapshot",
+        "agent-config",
+        "minified",
+        "vendor",
+        "source-map",
+        "protobuf",
+        "openapi",
+        "dependency-dir",
+        "cache-dir",
+        "test-output",
+        "fixture",
+        "binary-asset",
+        "large-file",
+        "other"
+      ]
+    },
     "pricingProfile": {
       "type": "object",
       "required": ["inputCostPerMillion"],
@@ -124,30 +186,7 @@
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
         },
-        "category": {
-          "type": "string",
-          "enum": [
-            "generated",
-            "coverage",
-            "lockfile",
-            "build-output",
-            "log",
-            "snapshot",
-            "agent-config",
-            "minified",
-            "vendor",
-            "source-map",
-            "protobuf",
-            "openapi",
-            "dependency-dir",
-            "cache-dir",
-            "test-output",
-            "fixture",
-            "binary-asset",
-            "large-file",
-            "other"
-          ]
-        },
+        "category": { "$ref": "#/$defs/contextCategory" },
         "label": { "type": "string", "minLength": 1 },
         "suggestion": { "type": "string" }
       }

@@ -3,6 +3,7 @@ import type { ContextLevySettings } from '../config/settings';
 import { getHighImpactFiles } from '../core/analyze';
 import type { FailDecision } from '../core/fail';
 import { formatRiskLevel, getRiskLevel } from '../core/severity';
+import { buildReviewSummary } from '../core/summary';
 import type { PullRequestAnalysis } from '../core/types';
 import { formatCompactTokens } from '../format/shared';
 
@@ -12,14 +13,17 @@ export async function writeJobSummary(
   failDecision: FailDecision,
 ): Promise<void> {
   const highImpact = getHighImpactFiles(analysis, settings.maxHighImpactItems);
+  const reviewSummary = buildReviewSummary(analysis);
   const riskLevel = getRiskLevel(
     analysis.totalEstimatedTokens,
-    highImpact.length,
+    highImpact,
     settings.severityThresholds,
   );
 
   const summary = core.summary
     .addHeading('ContextLevy')
+    .addRaw(reviewSummary.headline)
+    .addEOL()
     .addRaw(
       `Estimated **+${formatCompactTokens(analysis.totalEstimatedTokens)}** net-new context tokens across **${analysis.files.length}** analyzed file(s).`,
     )

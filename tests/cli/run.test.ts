@@ -9,6 +9,12 @@ function git(cwd: string, ...args: string[]): void {
   execFileSync('git', args, { cwd, encoding: 'utf8' });
 }
 
+function stageCoverageFixture(repoDir: string): void {
+  mkdirSync(join(repoDir, 'coverage'), { recursive: true });
+  writeFileSync(join(repoDir, 'coverage', 'lcov.info'), 'A'.repeat(5000));
+  git(repoDir, 'add', 'coverage/lcov.info');
+}
+
 describe('runCliDiff', () => {
   let repoDir: string;
 
@@ -27,9 +33,7 @@ describe('runCliDiff', () => {
   });
 
   it('reports ContextLevy output for changed coverage file', () => {
-    mkdirSync(join(repoDir, 'coverage'), { recursive: true });
-    writeFileSync(join(repoDir, 'coverage', 'lcov.info'), 'A'.repeat(5000));
-    git(repoDir, 'add', 'coverage/lcov.info');
+    stageCoverageFixture(repoDir);
 
     const result = runCliDiff(
       {
@@ -38,6 +42,7 @@ describe('runCliDiff', () => {
         staged: true,
         format: 'default',
         failOnConfig: false,
+        strict: false,
       },
       repoDir,
     );
@@ -48,9 +53,7 @@ describe('runCliDiff', () => {
 
   it('exits non-zero when fail-on-config thresholds are exceeded', () => {
     writeFileSync(join(repoDir, 'contextlevy.config.yml'), 'fail-above-tokens: 100\n');
-    mkdirSync(join(repoDir, 'coverage'), { recursive: true });
-    writeFileSync(join(repoDir, 'coverage', 'lcov.info'), 'A'.repeat(5000));
-    git(repoDir, 'add', 'coverage/lcov.info');
+    stageCoverageFixture(repoDir);
 
     const result = runCliDiff(
       {
@@ -59,6 +62,7 @@ describe('runCliDiff', () => {
         staged: true,
         format: 'default',
         failOnConfig: true,
+        strict: false,
       },
       repoDir,
     );

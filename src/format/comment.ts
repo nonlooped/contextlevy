@@ -1,3 +1,4 @@
+import { resolveSeverityThresholds } from '../config/settings';
 import { getHighImpactFiles } from '../core/analyze';
 import {
   formatIndexingSuggestion,
@@ -6,6 +7,7 @@ import {
 } from '../core/indexing';
 import { estimateSessionCost } from '../core/pricing';
 import { formatRiskLevel, getRiskLevel, RISK_LEVEL_EMOJI } from '../core/severity';
+import { buildReviewSummary, getPrioritizedFindings } from '../core/summary';
 import type {
   CommentOptions,
   FileAnalysis,
@@ -17,8 +19,9 @@ import {
   COMPACT_MAX_SUGGESTIONS,
   formatCompactTokens,
   formatCostRange,
+  formatShortPath,
   formatUsd,
-  resolveSeverityThresholds,
+  shortenFixSuggestion,
 } from './shared';
 
 export const COMMENT_MARKER = '<!-- contextlevy -->';
@@ -99,20 +102,8 @@ function formatFindingCell(filename: string, label: string): string {
   return `${formatInlineCodeInTable(filename)}<br/>${escapeMarkdownTableCell(label)}`;
 }
 
-function formatShortPath(filename: string): string {
-  const parts = filename.split('/');
-  if (parts.length <= 2) {
-    return filename;
-  }
-  return parts.slice(-2).join('/');
-}
-
 function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnalysis[] {
-  const rows = getHighImpactFiles(analysis, maxItems);
-  if (rows.length > 0) {
-    return rows;
-  }
-  return analysis.files.slice(0, maxItems);
+  return getPrioritizedFindings(analysis, maxItems);
 }
 
 function formatCompactFindings(files: FileAnalysis[], maxItems: number): string | null {
@@ -134,26 +125,6 @@ function formatCompactFindings(files: FileAnalysis[], maxItems: number): string 
   return parts.join(' · ');
 }
 
-function formatCompactFixSuggestion(suggestion: string): string {
-  if (/keep build output out of version control/i.test(suggestion)) {
-    return 'remove build output';
-  }
-  if (/add `coverage\/` to `\.gitignore`/i.test(suggestion)) {
-    return 'add `coverage/` to `.gitignore`';
-  }
-  if (/avoid committing generated output unless required/i.test(suggestion)) {
-    return 'avoid generated output';
-  }
-  if (/add `\*\.log` and `logs\/` to `\.gitignore`/i.test(suggestion)) {
-    return 'add logs to `.gitignore`';
-  }
-  if (/consider excluding these paths from agent indexing/i.test(suggestion)) {
-    return 'exclude artifacts from agent indexing';
-  }
-
-  return suggestion.replace(/\.$/, '');
-}
-
 function formatCompactFixLine(suggestions: string[]): string | null {
   if (suggestions.length === 0) {
     return null;
@@ -161,7 +132,7 @@ function formatCompactFixLine(suggestions: string[]): string | null {
 
   return suggestions
     .slice(0, COMPACT_MAX_SUGGESTIONS)
-    .map((suggestion) => formatCompactFixSuggestion(suggestion))
+    .map((suggestion) => shortenFixSuggestion(suggestion))
     .join(' · ');
 }
 
@@ -187,13 +158,10 @@ function formatCompactCostRange(
 }
 
 function formatCompactComment(analysis: PullRequestAnalysis, options: CommentOptions): string {
-  const severityThresholds = resolveSeverityThresholds(options);
-  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(
-    analysis.totalEstimatedTokens,
-    highImpact.length,
-    severityThresholds,
-  );
+  const severityThresholds = resolveSeverityThresholds(options.severityThresholds);
+  const highImpact = getHighImpactFiles(analysis, analysis.files.length);
+  const reviewSummary = buildReviewSummary(analysis);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact, severityThresholds);
   const findings = getFindings(analysis, options.maxHighImpactItems);
   const findingsLine = formatCompactFindings(findings, options.maxHighImpactItems);
   const costLine = options.showCostTable
@@ -202,7 +170,11 @@ function formatCompactComment(analysis: PullRequestAnalysis, options: CommentOpt
   const fixLine = formatCompactFixLine(buildSuggestions(analysis));
 
   const quoteLines: string[] = [
-    `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)} · **+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens**`,
+    `🤖 **ContextLevy** · ${formatCompactRiskLevel(riskLevel)}`,
+    '',
+    reviewSummary.headline,
+    '',
+    `**+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens**`,
     '',
   ];
 
@@ -245,7 +217,7 @@ function formatContextTable(analysis: PullRequestAnalysis, maxItems: number): st
   return [...tableHeader, ...tableRows].join('\n');
 }
 
-export function formatPricingCostSection(
+function formatPricingCostSection(
   totalEstimatedTokens: number,
   pricingProfiles: PricingProfile[],
 ): string {
@@ -256,7 +228,7 @@ export function formatPricingCostSection(
 
   return [
     '**Estimated worst-case input cost if read by an agent**',
-    '_Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included._',
+    '_Illustrative only — agents may not read every changed file. Not billing-grade._',
     '',
     '| Pricing profile | Est. input cost (±50%) |',
     '|---|---:|',
@@ -273,13 +245,10 @@ export function formatComment(analysis: PullRequestAnalysis, options: CommentOpt
 }
 
 function formatDefaultComment(analysis: PullRequestAnalysis, options: CommentOptions): string {
-  const severityThresholds = resolveSeverityThresholds(options);
-  const highImpact = getHighImpactFiles(analysis, options.maxHighImpactItems);
-  const riskLevel = getRiskLevel(
-    analysis.totalEstimatedTokens,
-    highImpact.length,
-    severityThresholds,
-  );
+  const severityThresholds = resolveSeverityThresholds(options.severityThresholds);
+  const highImpact = getHighImpactFiles(analysis, analysis.files.length);
+  const reviewSummary = buildReviewSummary(analysis);
+  const riskLevel = getRiskLevel(analysis.totalEstimatedTokens, highImpact, severityThresholds);
   const suggestions = buildSuggestions(analysis);
 
   const suggestionLines =
@@ -290,9 +259,9 @@ function formatDefaultComment(analysis: PullRequestAnalysis, options: CommentOpt
   const sections = [
     '🤖 **ContextLevy**',
     '',
-    `This PR adds **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated net-new AI-context tokens**.`,
+    reviewSummary.headline,
     '',
-    `**Risk level:** ${formatRiskLevel(riskLevel)}`,
+    `**Risk level:** ${formatRiskLevel(riskLevel)} · **~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens**`,
     '',
     formatContextTable(analysis, options.maxHighImpactItems),
   ];

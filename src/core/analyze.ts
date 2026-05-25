@@ -1,3 +1,4 @@
+import { sortFilesByDisplayPriority } from './categories';
 import { matchesAnyPathPattern } from './paths';
 import { classifyPath, DEFAULT_MATCH, largeFileMatch } from './rules';
 import { estimateTokensFromAdditions, estimateTokensFromPatch } from './tokens';
@@ -90,5 +91,6 @@ export function getHighImpactFiles(
   analysis: PullRequestAnalysis,
   maxItems: number,
 ): FileAnalysis[] {
-  return analysis.files.filter((file) => file.category !== 'other').slice(0, maxItems);
+  const highImpact = analysis.files.filter((file) => file.category !== 'other');
+  return sortFilesByDisplayPriority(highImpact).slice(0, maxItems);
 }

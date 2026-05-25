@@ -39,4 +39,38 @@ describe('shouldFailRun', () => {
   it('does not fail below configured token threshold', () => {
     expect(shouldFailRun(analysis, { failAboveTokens: 30_000 })).toEqual({ fail: false });
   });
+
+  it('fails when forbidden categories are present', () => {
+    expect(
+      shouldFailRun(analysis, {
+        failOnCategories: ['coverage'],
+      }),
+    ).toEqual({
+      fail: true,
+      reason: expect.stringMatching(/coverage/),
+    });
+  });
+
+  it('does not fail on warn-only categories alone', () => {
+    const lockfileAnalysis: PullRequestAnalysis = {
+      totalEstimatedTokens: 15_000,
+      suggestions: [],
+      files: [
+        {
+          filename: 'package-lock.json',
+          status: 'modified',
+          estimatedTokens: 15_000,
+          category: 'lockfile',
+          label: 'Lockfile churn',
+        },
+      ],
+    };
+
+    expect(
+      shouldFailRun(lockfileAnalysis, {
+        failOnCategories: ['coverage', 'lockfile'],
+        warnOnlyCategories: ['lockfile'],
+      }),
+    ).toEqual({ fail: false });
+  });
 });
