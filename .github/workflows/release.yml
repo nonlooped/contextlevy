@@ -152,5 +152,7 @@ jobs:
           MAJOR="${TAG%%.*}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f "$MAJOR" "$TAG"
-          git push origin "$MAJOR" --force
+          git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          TARGET=$(git rev-list -n 1 "$TAG")
+          git tag -f "$MAJOR" "$TARGET"
+          git push origin "refs/tags/${MAJOR}" --force
