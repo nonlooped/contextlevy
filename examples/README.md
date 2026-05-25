@@ -5,7 +5,7 @@ Intentional fixtures for dogfooding ContextLevy on real GitHub pull requests. Do
 | Example | Paths | Categories demonstrated |
 | --- | --- | --- |
 | [high-impact-pr](high-impact-pr/) | `coverage/lcov.info`, `prisma/generated/client.ts` | coverage, generated |
-| [agent-debt-pr](agent-debt-pr/) | `pnpm-lock.yaml`, `dist/app.js`, `.agents/skills/onboarding/SKILL.md` | lockfile, build output, agent config |
+| agent-debt-pr ([live demo branch](https://github.com/unloopedmido/contextlevy/tree/examples/live-demo/examples/agent-debt-pr)) | `pnpm-lock.yaml`, `dist/app.js`, `.agents/skills/onboarding/SKILL.md` | lockfile, build output, agent config |
 
 ## Live demo pull request
 
