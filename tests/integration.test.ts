@@ -93,7 +93,10 @@ describe('integration: PR simulation', () => {
   });
 
   it('prefers base-branch config over PR-side config changes', async () => {
-    const baseConfig = parseConfigContents('token-threshold: 5000\n', 'contextlevy.config.yml@base');
+    const baseConfig = parseConfigContents(
+      'token-threshold: 5000\n',
+      'contextlevy.config.yml@base',
+    );
     const prConfig = parseConfigContents('token-threshold: 0\n', 'contextlevy.config.yml@head');
 
     expect(baseConfig.tokenThreshold).toBe(5000);
