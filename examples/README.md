@@ -11,7 +11,7 @@ Intentional fixtures for dogfooding ContextLevy on real GitHub pull requests. Do
 
 ContextLevy runs on every pull request in this repository. To see a **live PR comment** with real workflow output, open the intentionally kept demo PR:
 
-**[Live demo PR](https://github.com/unloopedmido/contextlevy/pull/PLACEHOLDER)** — `examples/live-demo` → `main` (do not merge)
+**[Live demo PR](https://github.com/unloopedmido/contextlevy/pull/12)** — `examples/live-demo` → `main` (do not merge)
 
 That PR adds the `agent-debt-pr` fixtures so visitors can inspect the ContextLevy check, job summary, and PR comment without installing anything.
 
