@@ -14,6 +14,8 @@ lib/
 .agents/skills/*
 !.agents/skills/contextlevy/
 !.agents/skills/contextlevy/**
+!.agents/skills/contextlevy-cli/
+!.agents/skills/contextlevy-cli/**
 skills-lock.json
 docs/superpowers
 

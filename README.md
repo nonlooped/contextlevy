@@ -52,6 +52,8 @@
 
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for benchmark tables, monorepo recipes, and output usage.
 
+**Live demo:** [open example PR](https://github.com/unloopedmido/contextlevy/pull/PLACEHOLDER) — ContextLevy commenting on intentional high-context fixtures ([details](examples/README.md)).
+
 ## Why ContextLevy?
 
 AI coding agents are extremely sensitive to noisy repository context. A single PR can add generated clients, coverage, build output, lockfile churn, snapshots, logs, vendored files, and agent instruction dumps — bloating every future AI-assisted session without breaking your app.
@@ -156,15 +158,17 @@ contextlevy diff --base origin/main --format json --fail-on-config
 
 See [docs/CLI.md](docs/CLI.md) for flags, exit codes, and pre-push hook recipes.
 
-### Agent skill
+### Agent skills
 
 Teach coding agents how to set up and use ContextLevy:
 
 ```bash
-npx skills add unloopedmido/contextlevy --skill contextlevy
+npx skills add unloopedmido/contextlevy
 ```
 
-Skill source: [.agents/skills/contextlevy/SKILL.md](.agents/skills/contextlevy/SKILL.md)
+The interactive wizard lists every skill in [.agents/skills/](.agents/skills/) — pick `contextlevy` (GitHub Action), `contextlevy-cli` (local CLI), or both.
+
+Skill sources: [.agents/skills/contextlevy/SKILL.md](.agents/skills/contextlevy/SKILL.md) · [.agents/skills/contextlevy-cli/SKILL.md](.agents/skills/contextlevy-cli/SKILL.md)
 
 ## Documentation
 
