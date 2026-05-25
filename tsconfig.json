@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src", "__tests__"]
+  "include": ["src", "tests"]
 }

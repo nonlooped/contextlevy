@@ -65,6 +65,12 @@ Do **not** use the OAuth Client ID or Client Secret. ContextLevy needs the numer
 
 Optional override: `CONTEXTLEVY_APP_INSTALLATION_ID`.
 
+## Live demo pull request
+
+The repository keeps an **open demo PR** ([examples/README.md](examples/README.md)) so visitors can see ContextLevy comment on intentional high-context fixtures. Do not merge it.
+
+When `main` advances, rebase `examples/live-demo` onto `main` and push to refresh the demo.
+
 ## Pull requests
 
 Before opening a PR:

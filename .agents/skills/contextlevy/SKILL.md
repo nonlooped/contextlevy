@@ -1,32 +1,26 @@
 ---
 name: contextlevy
-description: Set up and use ContextLevy to estimate AI agent context cost from git diffs. Covers the GitHub Action (PR comments, fail thresholds) and the local CLI (pre-push checks). Use when the user asks about ContextLevy, AI context overhead, PR context bloat, coverage/generated files in diffs, contextlevy diff, or installing contextlevy.
+description: Set up and use the ContextLevy GitHub Action to estimate AI agent context cost on pull requests. Covers app install, workflow setup, PR comments, fail thresholds, and action outputs. Use when the user asks about ContextLevy on GitHub, PR context bloat, coverage/generated files in diffs, or installing the ContextLevy action.
 metadata:
   author: unloopedmido
   version: "1.0.0"
 ---
 
-# ContextLevy
+# ContextLevy (GitHub Action)
 
 ContextLevy estimates how much **net-new AI context** a diff adds — generated code, coverage, lockfiles, build output, agent config — and flags cleanup before it becomes repo debt.
 
-**Privacy:** No LLM calls, no code upload, no external API. Runs locally in CI and on your machine.
+**Privacy:** No LLM calls, no code upload, no external API. Runs locally in CI.
 
-## Install this skill
+For local pre-push checks, use the [contextlevy-cli](../contextlevy-cli/SKILL.md) skill.
+
+## Install skills
 
 ```bash
-npx skills add unloopedmido/contextlevy --skill contextlevy
+npx skills add unloopedmido/contextlevy
 ```
 
-## Choose a setup path
-
-| Goal | Use |
-| --- | --- |
-| Comment on every PR in GitHub | GitHub Action (below) |
-| Check locally before opening a PR | CLI (below) |
-| Block bad diffs in CI or hooks | CLI or Action with `fail-on-config` / `fail-above-tokens` |
-
-Both paths share the same `.contextlevy.yml` config and analysis rules.
+The wizard lets you pick `contextlevy` (this skill), `contextlevy-cli`, or both. To install only this skill: `--skill contextlevy`.
 
 ---
 
@@ -83,60 +77,6 @@ jobs:
 
 ---
 
-## Local CLI
-
-### Install
-
-```bash
-npm install -g contextlevy
-```
-
-Requires Node.js 20+ and `git` on PATH.
-
-### Common commands
-
-```bash
-# Working tree vs main
-contextlevy diff --base main
-
-# Staged changes only
-contextlevy diff --staged
-
-# JSON for scripts / hooks
-contextlevy diff --base origin/main --format json
-
-# Apply fail settings from .contextlevy.yml
-contextlevy diff --base main --fail-on-config
-
-# One-off threshold
-contextlevy diff --base main --fail-above-tokens 10000
-```
-
-### Exit codes
-
-| Code | Meaning |
-| ---: | --- |
-| `0` | Below fail thresholds |
-| `1` | Fail threshold exceeded |
-| `2` | Usage, config, or git error |
-
-### CLI caveats
-
-- Analyzes **tracked** changes visible to `git diff`. Stage new files with `git add`, or pass `--staged`.
-- Reuses the same config file and estimation modes as the Action.
-
-### Pre-push hook
-
-```json
-{
-  "scripts": {
-    "contextlevy": "contextlevy diff --base origin/main --fail-on-config"
-  }
-}
-```
-
----
-
 ## Configuration
 
 Add `.contextlevy.yml` at the repo root (or see [CONFIG.md](../../../docs/CONFIG.md) for all supported paths).
@@ -166,6 +106,8 @@ Key options:
 
 Editor autocomplete: point YAML at `docs/schema/contextlevy.schema.json` in the ContextLevy repo.
 
+For full config tables, severity levels, and recipes, see [reference.md](reference.md) and [CONFIG.md](../../../docs/CONFIG.md).
+
 ---
 
 ## What ContextLevy flags
@@ -183,12 +125,10 @@ Editor autocomplete: point YAML at `docs/schema/contextlevy.schema.json` in the 
 
 ## Agent guidance
 
-When helping a user set up ContextLevy:
+When helping a user set up ContextLevy on GitHub:
 
-1. Ask whether they need **PR comments** (Action), **local checks** (CLI), or **both**.
+1. Confirm they need **PR comments** (Action), **local checks** ([contextlevy-cli](../contextlevy-cli/SKILL.md)), or **both**.
 2. Add `.contextlevy.yml` before the workflow — keep workflow YAML minimal.
 3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
-4. Recommend `fail-on-config` in pre-push hooks; use `fail-on-severity: high` in CI for advisory-first teams.
+4. Recommend `fail-on-severity: high` in CI for advisory-first teams; pair with the CLI skill for pre-push hooks.
 5. Do **not** put GitHub App private keys in `.contextlevy.yml` — use secrets/variables.
-
-For full config tables, severity levels, and recipes, see [CONFIG.md](../../../docs/CONFIG.md).
