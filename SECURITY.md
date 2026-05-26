@@ -12,7 +12,7 @@ Security fixes are released as patch versions on the latest minor release line.
 
 ## Reporting a vulnerability
 
-Please report security issues privately through [GitHub Security Advisories](https://github.com/unloopedmido/contextlevy/security/advisories/new).
+Please report security issues privately through [GitHub Security Advisories](https://github.com/nonlooped/contextlevy/security/advisories/new).
 
 Do not open public issues for suspected token handling, GitHub App permission, workflow, or comment injection vulnerabilities.
 

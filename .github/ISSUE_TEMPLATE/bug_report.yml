@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for helping improve ContextLevy. Include enough detail to reproduce the issue.
 
-        For security issues, use [GitHub Security Advisories](https://github.com/unloopedmido/contextlevy/security/advisories/new) instead.
+        For security issues, use [GitHub Security Advisories](https://github.com/nonlooped/contextlevy/security/advisories/new) instead.
 
   - type: textarea
     id: workflow
@@ -16,7 +16,7 @@ body:
       label: Workflow snippet
       description: Paste the relevant `.github/workflows/` YAML (redact secrets).
       placeholder: |
-        - uses: unloopedmido/contextlevy@v2
+        - uses: nonlooped/contextlevy@v2
           env:
             CONTEXTLEVY_APP_ID: ${{ vars.CONTEXTLEVY_APP_ID }}
             ...

@@ -32,7 +32,7 @@ Use these in downstream workflow steps:
 
 ```yaml
 - id: contextlevy
-  uses: unloopedmido/contextlevy@v2
+  uses: nonlooped/contextlevy@v2
 
 - if: ${{ steps.contextlevy.outputs.total-estimated-tokens > 50000 }}
   run: echo "Context cost too high"

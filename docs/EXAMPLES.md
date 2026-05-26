@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: contextlevy
-        uses: unloopedmido/contextlevy@v2
+        uses: nonlooped/contextlevy@v2
 
       - name: Gate deploy on context cost
         if: ${{ steps.contextlevy.outputs.total-estimated-tokens > 50000 }}

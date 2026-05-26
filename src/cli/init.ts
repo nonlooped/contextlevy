@@ -19,7 +19,7 @@ const WORKFLOW_PATH = '.github/workflows/contextlevy.yml';
 
 function buildConfigContents(mode: ContextLevyMode): string {
   return `# ContextLevy — repo hygiene linter for agent-heavy teams
-# Docs: https://github.com/unloopedmido/contextlevy/blob/main/docs/QUICKSTART.md
+# Docs: https://github.com/nonlooped/contextlevy/blob/main/docs/QUICKSTART.md
 
 mode: ${mode}
 
@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: unloopedmido/contextlevy@v2
+      - uses: nonlooped/contextlevy@v2
         with:
           github-token: \${{ github.token }}
 `;

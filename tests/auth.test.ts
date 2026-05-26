@@ -101,7 +101,7 @@ describe('createAppInstallationToken', () => {
   it('creates an installation token for the current repository', async () => {
     const token = await createAppInstallationToken(
       { appId: '123456', privateKey: 'test-key' },
-      'unloopedmido',
+      'nonlooped',
       'contextlevy',
     );
 
@@ -112,7 +112,7 @@ describe('createAppInstallationToken', () => {
     await expect(
       createAppInstallationToken(
         { appId: 'Iv23lioQXAEnji6YXbEl', privateKey: 'test-key' },
-        'unloopedmido',
+        'nonlooped',
         'contextlevy',
       ),
     ).rejects.toThrow(/numeric GitHub App ID/i);
@@ -136,7 +136,7 @@ describe('resolveGithubToken', () => {
     process.env.CONTEXTLEVY_APP_CLIENT_ID = '123456';
     process.env.CONTEXTLEVY_APP_PRIVATE_KEY = 'test-key';
 
-    const resolved = await resolveGithubToken('unloopedmido', 'contextlevy');
+    const resolved = await resolveGithubToken('nonlooped', 'contextlevy');
 
     expect(resolved.source).toBe('app');
     expect(resolved.token).toBe('app-installation-token');
@@ -147,7 +147,7 @@ describe('resolveGithubToken', () => {
       name === 'github-token' ? 'input-token' : '',
     );
 
-    const resolved = await resolveGithubToken('unloopedmido', 'contextlevy');
+    const resolved = await resolveGithubToken('nonlooped', 'contextlevy');
 
     expect(resolved.source).toBe('github-token');
     expect(resolved.token).toBe('input-token');
@@ -162,7 +162,7 @@ describe('resolveGithubToken', () => {
       throw new Error('Invalid keyData');
     }) as never);
 
-    const resolved = await resolveGithubToken('unloopedmido', 'contextlevy');
+    const resolved = await resolveGithubToken('nonlooped', 'contextlevy');
 
     expect(resolved.source).toBe('GITHUB_TOKEN');
     expect(resolved.token).toBe('env-token');
@@ -171,7 +171,7 @@ describe('resolveGithubToken', () => {
   it('falls back to GITHUB_TOKEN when app credentials are absent', async () => {
     process.env.GITHUB_TOKEN = 'env-token';
 
-    const resolved = await resolveGithubToken('unloopedmido', 'contextlevy');
+    const resolved = await resolveGithubToken('nonlooped', 'contextlevy');
 
     expect(resolved.source).toBe('GITHUB_TOKEN');
     expect(resolved.token).toBe('env-token');

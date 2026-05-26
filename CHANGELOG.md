@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Local `contextlevy` CLI with `diff` command for pre-PR context checks (`npm install -g contextlevy`).
-- Public agent skill installable via `npx skills add unloopedmido/contextlevy --skill contextlevy`.
+- Public agent skill installable via `npx skills add nonlooped/contextlevy --skill contextlevy`.
 - Optional `estimation-mode: tokenizer` using local `cl100k_base` BPE counting (no network calls).
 - Configurable `custom-rules` for project-specific path classification.
 - Configurable `severity-thresholds` for risk level boundaries.
@@ -144,12 +144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/unloopedmido/contextlevy/compare/v2.4.0...HEAD
-[2.4.0]: https://github.com/unloopedmido/contextlevy/compare/v2.3.0...v2.4.0
-[2.3.0]: https://github.com/unloopedmido/contextlevy/compare/v2.2.2...v2.3.0
-[2.2.2]: https://github.com/unloopedmido/contextlevy/compare/v2.2.1...v2.2.2
-[2.2.1]: https://github.com/unloopedmido/contextlevy/compare/v2.2.0...v2.2.1
-[2.2.0]: https://github.com/unloopedmido/contextlevy/compare/v2.1.0...v2.2.0
-[2.1.0]: https://github.com/unloopedmido/contextlevy/compare/v2.0.1...v2.1.0
-[2.0.1]: https://github.com/unloopedmido/contextlevy/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/unloopedmido/contextlevy/compare/v1.3...v2.0.0
+[Unreleased]: https://github.com/nonlooped/contextlevy/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/nonlooped/contextlevy/compare/v2.3.0...v2.4.0
+[2.3.0]: https://github.com/nonlooped/contextlevy/compare/v2.2.2...v2.3.0
+[2.2.2]: https://github.com/nonlooped/contextlevy/compare/v2.2.1...v2.2.2
+[2.2.1]: https://github.com/nonlooped/contextlevy/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/nonlooped/contextlevy/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/nonlooped/contextlevy/compare/v2.0.1...v2.1.0
+[2.0.1]: https://github.com/nonlooped/contextlevy/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/nonlooped/contextlevy/compare/v1.3...v2.0.0

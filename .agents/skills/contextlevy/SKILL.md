@@ -2,7 +2,7 @@
 name: contextlevy
 description: Set up and use the ContextLevy GitHub Action to estimate AI agent context cost on pull requests. Covers app install, workflow setup, PR comments, fail thresholds, and action outputs. Use when the user asks about ContextLevy on GitHub, PR context bloat, coverage/generated files in diffs, or installing the ContextLevy action.
 metadata:
-  author: unloopedmido
+  author: nonlooped
   version: "1.0.0"
 ---
 
@@ -17,7 +17,7 @@ For local pre-push checks, use the [contextlevy-cli](../contextlevy-cli/SKILL.md
 ## Install skills
 
 ```bash
-npx skills add unloopedmido/contextlevy
+npx skills add nonlooped/contextlevy
 ```
 
 The wizard lets you pick `contextlevy` (this skill), `contextlevy-cli`, or both. To install only this skill: `--skill contextlevy`.
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: unloopedmido/contextlevy@v2
+      - uses: nonlooped/contextlevy@v2
         with:
           github-token: ${{ github.token }}
 ```

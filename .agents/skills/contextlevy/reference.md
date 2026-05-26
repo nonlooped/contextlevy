@@ -124,7 +124,7 @@ max-high-impact-items: 3
 
 ## Links
 
-- Repository: https://github.com/unloopedmido/contextlevy
+- Repository: https://github.com/nonlooped/contextlevy
 - GitHub App: https://github.com/apps/contextlevy
 - npm CLI: `npm install -g contextlevy`
 - JSON Schema: `docs/schema/contextlevy.schema.json` in the repo

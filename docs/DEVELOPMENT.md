@@ -64,7 +64,7 @@ Releases are automated when a version bump lands on `main`. The [release workflo
 
 **Do not push semver tags manually.** Bump the version in `package.json`, `package-lock.json`, and `CHANGELOG.md`, push to `main`, and CI handles the tag, GitHub Release, and npm publish.
 
-On [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, configure **GitHub Actions** with repository `unloopedmido/contextlevy` and workflow filename `release.yml`. No `NPM_TOKEN` secret is required.
+On [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, configure **GitHub Actions** with repository `nonlooped/contextlevy` and workflow filename `release.yml`. No `NPM_TOKEN` secret is required.
 
 If npm publish fails after a version bump, re-run the **Release** workflow from the Actions tab (`workflow_dispatch`) once the package is missing on npm — it will retry without another version bump.
 
@@ -92,7 +92,7 @@ Then add the trusted publisher on npmjs.com as described above. Later version bu
 Consumers should usually pin:
 
 ```yaml
-- uses: unloopedmido/contextlevy@v2
+- uses: nonlooped/contextlevy@v2
 ```
 
 For maximum supply-chain safety, consumers can pin a full commit SHA.

@@ -82,7 +82,7 @@ Before opening a PR:
 
 Keep changes focused. Match existing code style and keep workflow YAML examples aligned with [README.md](README.md).
 
-For security issues, use [GitHub Security Advisories](https://github.com/unloopedmido/contextlevy/security/advisories/new) instead of a public issue.
+For security issues, use [GitHub Security Advisories](https://github.com/nonlooped/contextlevy/security/advisories/new) instead of a public issue.
 
 ## Code of conduct
 

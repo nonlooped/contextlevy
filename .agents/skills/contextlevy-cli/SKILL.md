@@ -2,7 +2,7 @@
 name: contextlevy-cli
 description: Install and use the ContextLevy CLI for local AI context cost checks from git diffs. Covers npm install, diff commands, JSON output, exit codes, and pre-push hooks. Use when the user asks about contextlevy diff, pre-push context checks, local ContextLevy setup, or installing contextlevy via npm.
 metadata:
-  author: unloopedmido
+  author: nonlooped
   version: "1.0.0"
 ---
 
@@ -17,7 +17,7 @@ For PR comments in GitHub, use the [contextlevy](../contextlevy/SKILL.md) skill.
 ## Install skills
 
 ```bash
-npx skills add unloopedmido/contextlevy
+npx skills add nonlooped/contextlevy
 ```
 
 The wizard lets you pick `contextlevy-cli` (this skill), `contextlevy`, or both. To install only this skill: `--skill contextlevy-cli`.

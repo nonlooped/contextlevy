@@ -17,14 +17,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/unloopedmido/contextlevy/actions/workflows/ci.yml">
-    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/unloopedmido/contextlevy/ci.yml?branch=main&label=CI">
+  <a href="https://github.com/nonlooped/contextlevy/actions/workflows/ci.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/nonlooped/contextlevy/ci.yml?branch=main&label=CI">
   </a>
-  <a href="https://github.com/unloopedmido/contextlevy/releases">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/unloopedmido/contextlevy?label=release">
+  <a href="https://github.com/nonlooped/contextlevy/releases">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/nonlooped/contextlevy?label=release">
   </a>
-  <a href="https://github.com/unloopedmido/contextlevy/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/unloopedmido/contextlevy">
+  <a href="https://github.com/nonlooped/contextlevy/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/nonlooped/contextlevy">
   </a>
   <img alt="Coverage" src="https://img.shields.io/badge/coverage-%E2%89%A570%25-brightgreen">
   <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen">
@@ -52,7 +52,7 @@
 
 See [docs/EXAMPLES.md](docs/EXAMPLES.md) for benchmark tables, monorepo recipes, and output usage.
 
-**Live demo:** [open example PR](https://github.com/unloopedmido/contextlevy/pull/12) — ContextLevy commenting on intentional high-context fixtures ([details](examples/README.md)).
+**Live demo:** [open example PR](https://github.com/nonlooped/contextlevy/pull/12) — ContextLevy commenting on intentional high-context fixtures ([details](examples/README.md)).
 
 ## Why ContextLevy?
 
@@ -142,7 +142,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: unloopedmido/contextlevy@v2
+      - uses: nonlooped/contextlevy@v2
         with:
           github-token: ${{ github.token }}
 ```
@@ -176,7 +176,7 @@ See [docs/CLI.md](docs/CLI.md) for flags, exit codes, and pre-push hook recipes.
 Teach coding agents how to set up and use ContextLevy:
 
 ```bash
-npx skills add unloopedmido/contextlevy
+npx skills add nonlooped/contextlevy
 ```
 
 The interactive wizard lists every skill in [.agents/skills/](.agents/skills/) — pick `contextlevy` (GitHub Action), `contextlevy-cli` (local CLI), or both.

@@ -3,14 +3,14 @@
   "version": "2.4.0",
   "description": "Repo hygiene linter for agent-heavy teams — local CLI and GitHub Action",
   "license": "MIT",
-  "author": "unloopedmido",
+  "author": "nonlooped",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unloopedmido/contextlevy.git"
+    "url": "git+https://github.com/nonlooped/contextlevy.git"
   },
-  "homepage": "https://github.com/unloopedmido/contextlevy#readme",
+  "homepage": "https://github.com/nonlooped/contextlevy#readme",
   "bugs": {
-    "url": "https://github.com/unloopedmido/contextlevy/issues"
+    "url": "https://github.com/nonlooped/contextlevy/issues"
   },
   "keywords": [
     "ai",
