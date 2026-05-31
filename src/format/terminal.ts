@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import pc from 'picocolors';
 import { resolveSeverityThresholds } from '../config/settings';
 import { getHighImpactFiles } from '../core/analyze';
 import { estimateSessionCost } from '../core/pricing';
@@ -22,10 +22,10 @@ import {
 } from './shared';
 
 const RISK_COLORS = {
-  Low: chalk.green,
-  Medium: chalk.yellow,
-  High: chalk.red,
-  Critical: chalk.red.bold,
+  Low: pc.green,
+  Medium: pc.yellow,
+  High: pc.red,
+  Critical: (text: string) => pc.red(pc.bold(text)),
 } as const;
 
 const RISK_EMOJI = {
@@ -37,8 +37,8 @@ const RISK_EMOJI = {
 
 function renderInlineMarkdown(text: string): string {
   return text
-    .replace(/\*\*([^*]+)\*\*/g, (_, value: string) => chalk.bold(value))
-    .replace(/`([^`]+)`/g, (_, value: string) => chalk.cyan(value));
+    .replace(/\*\*([^*]+)\*\*/g, (_, value: string) => pc.bold(value))
+    .replace(/`([^`]+)`/g, (_, value: string) => pc.cyan(value));
 }
 
 function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnalysis[] {
@@ -47,14 +47,14 @@ function getFindings(analysis: PullRequestAnalysis, maxItems: number): FileAnaly
 
 function formatRiskBadge(riskLevel: ReturnType<typeof getRiskLevel>, boldLabel = false): string {
   const color = RISK_COLORS[riskLevel];
-  const label = boldLabel ? chalk.bold(riskLevel) : riskLevel;
+  const label = boldLabel ? pc.bold(riskLevel) : riskLevel;
   return `${RISK_EMOJI[riskLevel]} ${color(label)}`;
 }
 
 function formatFindingsTable(analysis: PullRequestAnalysis, maxItems: number): string {
   const rows = getFindings(analysis, maxItems);
   if (rows.length === 0) {
-    return chalk.dim('No added context detected in this diff.');
+    return pc.dim('No added context detected in this diff.');
   }
 
   const addedWidth = Math.max(
@@ -63,20 +63,17 @@ function formatFindingsTable(analysis: PullRequestAnalysis, maxItems: number): s
   );
   const fileWidth = Math.max(4, ...rows.map((file) => file.filename.length));
 
-  const header = [
-    chalk.bold('ADDED'.padStart(addedWidth)),
-    chalk.bold('FILE'.padEnd(fileWidth)),
-  ].join('  ');
+  const header = [pc.bold('ADDED'.padStart(addedWidth)), pc.bold('FILE'.padEnd(fileWidth))].join(
+    '  ',
+  );
 
-  const divider = [chalk.dim('─'.repeat(addedWidth)), chalk.dim('─'.repeat(fileWidth))].join('  ');
+  const divider = [pc.dim('─'.repeat(addedWidth)), pc.dim('─'.repeat(fileWidth))].join('  ');
 
   const body = rows.flatMap((file) => {
-    const added = chalk.yellow(
-      `+${formatCompactTokens(file.estimatedTokens)}`.padStart(addedWidth),
-    );
-    const filename = chalk.cyan(file.filename.padEnd(fileWidth));
+    const added = pc.yellow(`+${formatCompactTokens(file.estimatedTokens)}`.padStart(addedWidth));
+    const filename = pc.cyan(file.filename.padEnd(fileWidth));
     const labelIndent = ' '.repeat(addedWidth + 2);
-    const label = chalk.dim(`${labelIndent}${file.label}`);
+    const label = pc.dim(`${labelIndent}${file.label}`);
     return [`${added}  ${filename}`, label];
   });
 
@@ -93,11 +90,11 @@ function formatPricingSection(
   );
 
   const header = [
-    chalk.bold('Pricing profile'.padEnd(nameWidth)),
-    chalk.bold('Est. input cost (±50%)'),
+    pc.bold('Pricing profile'.padEnd(nameWidth)),
+    pc.bold('Est. input cost (±50%)'),
   ].join('  ');
 
-  const divider = [chalk.dim('─'.repeat(nameWidth)), chalk.dim('─'.repeat(24))].join('  ');
+  const divider = [pc.dim('─'.repeat(nameWidth)), pc.dim('─'.repeat(24))].join('  ');
 
   const rows = pricingProfiles.map((profile) => {
     const cost = estimateSessionCost(totalEstimatedTokens, profile.inputCostPerMillion);
@@ -105,8 +102,8 @@ function formatPricingSection(
   });
 
   return [
-    chalk.bold('Estimated worst-case input cost if read by an agent'),
-    chalk.dim(
+    pc.bold('Estimated worst-case input cost if read by an agent'),
+    pc.dim(
       'Based on configured input-token pricing. Estimates may vary ±50% depending on model tokenizer. Output tokens and caching are not included.',
     ),
     '',
@@ -118,11 +115,11 @@ function formatPricingSection(
 
 function formatSuggestions(suggestions: string[]): string {
   if (suggestions.length === 0) {
-    return chalk.dim('  • No specific suggestions — diff looks context-light.');
+    return pc.dim('  • No specific suggestions — diff looks context-light.');
   }
 
   return suggestions
-    .map((suggestion) => `  ${chalk.cyan('•')} ${renderInlineMarkdown(suggestion)}`)
+    .map((suggestion) => `  ${pc.cyan('•')} ${renderInlineMarkdown(suggestion)}`)
     .join('\n');
 }
 
@@ -138,17 +135,17 @@ function formatCompactFindings(files: FileAnalysis[], maxItems: number): string 
   }
 
   const parts = shown.map((file) => {
-    const path = chalk.cyan(formatShortPath(file.filename));
-    const tokens = chalk.yellow(`+${formatCompactTokens(file.estimatedTokens)}`);
+    const path = pc.cyan(formatShortPath(file.filename));
+    const tokens = pc.yellow(`+${formatCompactTokens(file.estimatedTokens)}`);
     return `${path} ${tokens}`;
   });
 
   const remaining = files.length - shown.length;
   if (remaining > 0) {
-    parts.push(chalk.dim(`+${remaining} more`));
+    parts.push(pc.dim(`+${remaining} more`));
   }
 
-  return parts.join(chalk.dim(' · '));
+  return parts.join(pc.dim(' · '));
 }
 
 function formatCompactCostRange(
@@ -166,10 +163,10 @@ function formatCompactCostRange(
   const max = Math.max(...costs);
 
   if (min === max) {
-    return `${chalk.bold('Worst-case input cost:')} ~${formatUsd(min)}/session`;
+    return `${pc.bold('Worst-case input cost:')} ~${formatUsd(min)}/session`;
   }
 
-  return `${chalk.bold('Worst-case input cost:')} ~${formatUsd(min)}–${formatUsd(max)}/session`;
+  return `${pc.bold('Worst-case input cost:')} ~${formatUsd(min)}–${formatUsd(max)}/session`;
 }
 
 export function formatTerminalDefault(
@@ -184,13 +181,13 @@ export function formatTerminalDefault(
   const suggestions = buildSuggestions(analysis);
 
   const sections = [
-    `${chalk.bold('🤖 ContextLevy')}`,
+    `${pc.bold('🤖 ContextLevy')}`,
     '',
     reviewSummary.headline,
     '',
-    `${chalk.bold('Risk level:')} ${formatRiskBadge(riskLevel)} · ${chalk.bold(`~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`)}`,
+    `${pc.bold('Risk level:')} ${formatRiskBadge(riskLevel)} · ${pc.bold(`~${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`)}`,
     '',
-    chalk.bold('Findings'),
+    pc.bold('Findings'),
     formatFindingsTable(analysis, options.maxHighImpactItems),
   ];
 
@@ -200,24 +197,24 @@ export function formatTerminalDefault(
 
   sections.push(
     '',
-    chalk.bold('Suggestions'),
+    pc.bold('Suggestions'),
     formatSuggestions(suggestions),
     '',
-    chalk.dim(
+    pc.dim(
       'Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing.',
     ),
-    chalk.dim('ContextLevy runs locally and does not send code to an external API.'),
+    pc.dim('ContextLevy runs locally and does not send code to an external API.'),
   );
 
   if (meta?.baseRef) {
     sections.push(
       '',
-      chalk.dim(`Scanned ${analysis.files.length} changed file(s) against ${meta.baseRef}.`),
+      pc.dim(`Scanned ${analysis.files.length} changed file(s) against ${meta.baseRef}.`),
     );
   }
 
   if (meta?.configFound === false) {
-    sections.push(chalk.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
+    sections.push(pc.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
   }
 
   return sections.join('\n');
@@ -240,18 +237,16 @@ export function formatTerminalCompact(
   const fixLine = buildSuggestions(analysis)
     .slice(0, COMPACT_MAX_SUGGESTIONS)
     .map((suggestion) => formatCompactFixSuggestion(suggestion))
-    .join(chalk.dim(' · '));
+    .join(pc.dim(' · '));
 
-  const header = [chalk.bold('🤖 ContextLevy'), formatRiskBadge(riskLevel, true)].join(
-    chalk.dim(' · '),
-  );
+  const header = [pc.bold('🤖 ContextLevy'), formatRiskBadge(riskLevel, true)].join(pc.dim(' · '));
 
   const lines = [
     header,
     '',
     reviewSummary.headline,
     '',
-    chalk.bold(`+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`),
+    pc.bold(`+${formatCompactTokens(analysis.totalEstimatedTokens)} estimated context tokens`),
   ];
 
   if (findingsLine) {
@@ -263,17 +258,17 @@ export function formatTerminalCompact(
     detailLines.push(`  ${costLine}`);
   }
   if (fixLine) {
-    detailLines.push(`  ${chalk.bold('Fix:')} ${renderInlineMarkdown(fixLine)}`);
+    detailLines.push(`  ${pc.bold('Fix:')} ${renderInlineMarkdown(fixLine)}`);
   }
 
   if (detailLines.length > 0) {
     lines.push('', ...detailLines);
   }
 
-  lines.push('', chalk.dim('Estimated context risk only. Agents may not read every changed file.'));
+  lines.push('', pc.dim('Estimated context risk only. Agents may not read every changed file.'));
 
   if (meta?.configFound === false) {
-    lines.push(chalk.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
+    lines.push(pc.dim('No contextlevy.config.yml found. Run: npx contextlevy init'));
   }
 
   return lines.join('\n');

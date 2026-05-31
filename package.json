@@ -53,14 +53,14 @@
     "all": "npm run check && npm run build"
   },
   "dependencies": {
-    "chalk": "^4.1.2",
+    "picocolors": "^1.1.1",
     "js-tiktoken": "^1.0.21",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1",
-    "@biomejs/biome": "2.4.15",
+    "@actions/core": "^2.0.3",
+    "@actions/github": "^8.0.1",
+    "@biomejs/biome": "2.4.16",
     "@octokit/auth-app": "^7.1.5",
     "@octokit/rest": "^21.1.1",
     "@types/node": "^25.9.1",
