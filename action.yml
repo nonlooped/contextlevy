@@ -8,6 +8,14 @@ inputs:
   github-token:
     description: 'Fallback token with pull-requests: write when GitHub App auth is not configured'
     required: false
+  create-check:
+    description: 'Publish a GitHub Check Run named ContextLevy (requires checks: write)'
+    required: false
+    default: 'true'
+  upload-sarif:
+    description: 'Upload SARIF for Code Scanning annotations (requires security-events: write)'
+    required: false
+    default: 'true'
   app-client-id:
     description: 'ContextLevy GitHub App ID. Falls back to CONTEXTLEVY_APP_ID or CONTEXTLEVY_APP_CLIENT_ID env var.'
     required: false
@@ -27,6 +35,18 @@ outputs:
     description: 'Auth source used for the run: app, github-token, or GITHUB_TOKEN'
   estimation-mode:
     description: 'Token estimation mode used for this run: simple or tokenizer'
+  risk-level:
+    description: 'Aggregated PR context risk level: Low, Medium, High, or Critical'
+  check-conclusion:
+    description: 'GitHub Check Run conclusion when create-check is enabled'
+  badge-url:
+    description: 'shields.io badge URL for PR context risk'
+  badge-markdown:
+    description: 'Markdown image tag for PR/README badges'
+  sarif-path:
+    description: 'Path to the generated SARIF file in the workspace'
+  sarif-uploaded:
+    description: 'Whether SARIF was uploaded to GitHub Code Scanning (true/false)'
 
 runs:
   using: node20

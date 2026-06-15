@@ -3,15 +3,27 @@ import * as github from '@actions/github';
 import { loadConfigFile } from '../config/load';
 import { resolveSettings } from '../config/settings';
 import type { ContextLevyConfig } from '../config/types';
-import { analyzePullRequestFiles } from '../core/analyze';
+import { analyzePullRequestFiles, getHighImpactFiles } from '../core/analyze';
 import { shouldPostComment } from '../core/comment-gate';
 import { shouldFailRun } from '../core/fail';
+import { getRiskLevel } from '../core/severity';
+import { buildBadgeMarkdown, buildRiskBadgeUrl } from '../format/badge';
 import { formatComment } from '../format/comment';
 import { resolveGithubToken } from './auth';
+import { publishCheckRun } from './check';
 import { isCommentAccessError, upsertComment } from './comments';
 import { loadBaseConfig } from './config-loader';
 import { listAllPullRequestFiles } from './files';
+import { uploadSarifReport } from './sarif-upload';
 import { writeJobSummary } from './summary';
+
+function parseActionBoolean(value: string, defaultValue: boolean): boolean {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return defaultValue;
+  }
+  return trimmed !== 'false' && trimmed !== '0' && trimmed !== 'no';
+}
 
 async function getAuthenticatedLogin(
   octokit: ReturnType<typeof github.getOctokit>,
@@ -38,7 +50,12 @@ export async function run(): Promise<void> {
   }
 
   const pullNumber = context.payload.pull_request.number;
+  const headSha = context.payload.pull_request.head?.sha;
+  const headRef = context.payload.pull_request.head?.ref;
   const { owner, repo } = context.repo;
+
+  const createCheck = parseActionBoolean(core.getInput('create-check'), true);
+  const uploadSarif = parseActionBoolean(core.getInput('upload-sarif'), true);
 
   const { token, source } = await resolveGithubToken(owner, repo);
   core.setOutput('token-source', source);
@@ -79,9 +96,21 @@ export async function run(): Promise<void> {
     customRules: settings.customRules,
   });
 
+  const highImpact = getHighImpactFiles(analysis, settings.maxHighImpactItems);
+  const riskLevel = getRiskLevel(
+    analysis.totalEstimatedTokens,
+    highImpact,
+    settings.severityThresholds,
+  );
+
   core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
   core.setOutput('analyzed-file-count', String(analysis.files.length));
   core.setOutput('estimation-mode', settings.estimationMode);
+  core.setOutput('risk-level', riskLevel);
+
+  const badgeUrl = buildRiskBadgeUrl(riskLevel, analysis.totalEstimatedTokens);
+  core.setOutput('badge-url', badgeUrl);
+  core.setOutput('badge-markdown', buildBadgeMarkdown(badgeUrl, 'Context risk'));
 
   const failDecision = shouldFailRun(
     analysis,
@@ -94,6 +123,36 @@ export async function run(): Promise<void> {
     },
     settings.maxHighImpactItems,
   );
+
+  let checkConclusion: string | undefined;
+  if (createCheck && headSha) {
+    checkConclusion = await publishCheckRun(
+      octokit,
+      owner,
+      repo,
+      headSha,
+      analysis,
+      settings,
+      failDecision,
+    );
+    core.setOutput('check-conclusion', checkConclusion);
+  }
+
+  let sarifPath: string | undefined;
+  if (uploadSarif && headSha && headRef) {
+    const sarifResult = await uploadSarifReport(
+      octokit,
+      owner,
+      repo,
+      headSha,
+      `refs/heads/${headRef}`,
+      analysis,
+      workspaceRoot,
+    );
+    sarifPath = sarifResult.sarifPath;
+    core.setOutput('sarif-path', sarifPath);
+    core.setOutput('sarif-uploaded', String(sarifResult.uploaded));
+  }
 
   await writeJobSummary(analysis, settings, failDecision);
 
