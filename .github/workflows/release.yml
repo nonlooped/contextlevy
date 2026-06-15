@@ -99,16 +99,10 @@ jobs:
           git diff --exit-code dist/index.js dist/licenses.txt
           npm run pack:check
 
-      - name: Publish to npm (OIDC)
-        if: steps.package.outputs.publish == 'true' && secrets.NPM_TOKEN == ''
-        run: |
-          npm --version
-          node --version
-          npm publish --provenance --access public
-
-      - name: Publish to npm (token fallback)
-        if: steps.package.outputs.publish == 'true' && secrets.NPM_TOKEN != ''
+      - name: Publish to npm
+        if: steps.package.outputs.publish == 'true'
         env:
+          # Optional fallback when npm trusted publishing is misconfigured.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm --version
