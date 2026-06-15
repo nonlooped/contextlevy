@@ -2,6 +2,11 @@
 mode: legacy
 token-threshold: 500
 comment-format: default
+# Intentionally committed paths — counted for volume but not flagged as repo junk
+allow-paths:
+  - dist/**
+  - examples/high-impact-pr/**
+  - package-lock.json
 pricing-profiles:
   - name: GPT-5.5
     inputCostPerMillion: 5.0
