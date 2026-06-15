@@ -31,12 +31,17 @@ export function resolveFileClassification(
   options: ClassifyFileOptions,
 ): RuleMatch {
   let rule = classifyPath(filename, options.customRules);
+  const isAllowListed = matchesAnyPathPattern(filename, options.allowPaths);
 
-  if (matchesAnyPathPattern(filename, options.allowPaths)) {
+  if (isAllowListed) {
     rule = DEFAULT_MATCH;
   }
 
-  if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
+  if (
+    !isAllowListed &&
+    estimatedTokens >= options.largeFileTokenThreshold &&
+    rule.category === 'other'
+  ) {
     rule = largeFileMatch();
   }
 

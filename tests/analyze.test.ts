@@ -134,4 +134,30 @@ describe('analyzePullRequestFiles', () => {
     expect(result.files[0]?.category).toBe('other');
     expect(result.files[0]?.suggestion).toBeUndefined();
   });
+
+  it('does not promote allow-listed files to large-file', () => {
+    const result = analyzePullRequestFiles(
+      [
+        {
+          filename: 'dist/bundle.js',
+          status: 'added',
+          additions: 20_000,
+          deletions: 0,
+          changes: 20_000,
+          patch: `+${'x'.repeat(20_000)}\n`,
+        },
+      ],
+      {
+        ...defaultAnalyzeOptions,
+        allowPaths: ['dist/**'],
+      },
+    );
+
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0]?.category).toBe('other');
+    expect(result.files[0]?.suggestion).toBeUndefined();
+    expect(result.files[0]?.estimatedTokens).toBeGreaterThanOrEqual(
+      defaultAnalyzeOptions.largeFileTokenThreshold,
+    );
+  });
 });
