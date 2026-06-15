@@ -46,7 +46,7 @@ allow-paths:
   - "packages/api/src/generated/**"
 ```
 
-Files on the allowlist are still counted but not flagged as high-impact.
+Files on the allowlist are still counted but not flagged as high-impact, including `large-file` promotion when diffs exceed `large-file-token-threshold`.
 
 ## Strict local check
 

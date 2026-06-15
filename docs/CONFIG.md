@@ -59,7 +59,7 @@ allow-paths:
   - "packages/api/src/generated/**"
 ```
 
-Allowlisted paths are counted but not flagged as high-impact.
+Allowlisted paths are counted but not flagged as high-impact. They stay in the `other` category even when token volume exceeds `large-file-token-threshold` — allowlisting suppresses `large-file` promotion and its suggestion text.
 
 ## JSON Schema
 
@@ -134,7 +134,7 @@ tokenThreshold: 1000
 | `show-cost-table` | `false` | Include estimated model input costs |
 | `comment-format` | `compact` | `default` or `compact` |
 | `ignore-paths` | `[]` | Glob patterns excluded from analysis entirely |
-| `allow-paths` / `allowlist-paths` | `[]` | Allowlist — counted but not flagged as high-impact |
+| `allow-paths` / `allowlist-paths` | `[]` | Allowlist — counted but not flagged as high-impact (never promoted to `large-file`) |
 | `fail-on-categories` | `[]` (`strict` preset sets junk categories) | Fail when diff includes these categories |
 | `warn-only-categories` | `[]` | Never fail solely on these categories |
 | `fail-on-severity` | unset | Fail workflow at `low` / `medium` / `high` / `critical` or above |
