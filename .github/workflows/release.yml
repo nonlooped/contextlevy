@@ -22,6 +22,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -96,6 +99,22 @@ jobs:
           git diff --exit-code dist/index.js dist/licenses.txt
           npm run pack:check
 
+      - name: Publish to npm (OIDC)
+        if: steps.package.outputs.publish == 'true' && secrets.NPM_TOKEN == ''
+        run: |
+          npm --version
+          node --version
+          npm publish --provenance --access public
+
+      - name: Publish to npm (token fallback)
+        if: steps.package.outputs.publish == 'true' && secrets.NPM_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm --version
+          node --version
+          npm publish --provenance --access public
+
       - name: Push version tag
         if: steps.package.outputs.publish == 'true'
         run: |
@@ -138,12 +157,6 @@ jobs:
             --notes-file "$NOTES_FILE" \
             dist/index.js \
             dist/licenses.txt
-
-      - name: Publish to npm
-        if: steps.package.outputs.publish == 'true'
-        run: |
-          npm install -g npm@latest
-          npm publish --provenance --access public
 
       - name: Update major version tag
         if: steps.package.outputs.publish == 'true'

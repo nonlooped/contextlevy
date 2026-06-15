@@ -64,9 +64,20 @@ Releases are automated when a version bump lands on `main`. The [release workflo
 
 **Do not push semver tags manually.** Bump the version in `package.json`, `package-lock.json`, and `CHANGELOG.md`, push to `main`, and CI handles the tag, GitHub Release, and npm publish.
 
-On [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, configure **GitHub Actions** with repository `nonlooped/contextlevy` and workflow filename `release.yml`. No `NPM_TOKEN` secret is required.
+On [npmjs.com](https://www.npmjs.com/package/contextlevy) → **Package settings** → **Trusted publishing**, configure **GitHub Actions** with:
 
-If npm publish fails after a version bump, re-run the **Release** workflow from the Actions tab (`workflow_dispatch`) once the package is missing on npm — it will retry without another version bump.
+| Field | Value |
+| --- | --- |
+| Organization or user | `nonlooped` |
+| Repository | `contextlevy` |
+| Workflow filename | `release.yml` |
+| Allowed actions | **npm publish** (required since May 2026) |
+
+No `NPM_TOKEN` secret is required when trusted publishing is configured correctly.
+
+If npm publish fails with `E404` after provenance is signed, the trusted publisher is usually misconfigured (wrong workflow filename, missing **npm publish** permission, or self-hosted runners). Fix the publisher on npmjs.com, then re-run the **Release** workflow (`workflow_dispatch`). As a fallback, add an `NPM_TOKEN` repository secret with publish access — the workflow uses it only when the secret is set.
+
+The workflow publishes to npm **before** creating tags/releases so a failed npm publish does not leave a GitHub Release without a matching npm package.
 
 Example release sequence:
 
