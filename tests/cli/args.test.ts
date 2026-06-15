@@ -45,6 +45,8 @@ describe('parseCliArgs', () => {
       command: 'init',
       mode: 'strict',
       workflow: true,
+      full: false,
+      hookPreCommit: false,
       dryRun: false,
       force: false,
     });
@@ -52,11 +54,52 @@ describe('parseCliArgs', () => {
 
   it('treats --strict as fail-on-config', () => {
     const args = parseCliArgs(['check', '--strict']);
-    expect(args.command).not.toBe('init');
-    if (args.command === 'init') {
+    expect(args.command).toBe('check');
+    if (args.command !== 'check' && args.command !== 'diff') {
       throw new Error('expected diff/check');
     }
     expect(args.failOnConfig).toBe(true);
     expect(args.strict).toBe(true);
+  });
+
+  it('parses scan command', () => {
+    expect(parseCliArgs(['scan', '--format', 'json'])).toEqual({
+      command: 'scan',
+      format: 'json',
+    });
+  });
+
+  it('parses fix command', () => {
+    expect(parseCliArgs(['fix', '--write', '--target', 'gitignore', '--from', 'check'])).toEqual({
+      command: 'fix',
+      write: true,
+      target: 'gitignore',
+      from: 'check',
+      base: 'main',
+      staged: false,
+    });
+  });
+
+  it('parses hook install command', () => {
+    expect(parseCliArgs(['hook', 'install', '--pre-commit', '--no-pre-push'])).toEqual({
+      command: 'hook-install',
+      prePush: false,
+      preCommit: true,
+      base: 'main',
+      dryRun: false,
+      force: false,
+    });
+  });
+
+  it('parses init --full', () => {
+    expect(parseCliArgs(['init', '--full', '--mode', 'strict'])).toEqual({
+      command: 'init',
+      mode: 'strict',
+      workflow: false,
+      full: true,
+      hookPreCommit: false,
+      dryRun: false,
+      force: false,
+    });
   });
 });
