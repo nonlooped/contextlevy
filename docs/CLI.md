@@ -20,6 +20,29 @@ npx contextlevy init
 
 ## Commands
 
+### `contextlevy scan`
+
+Baseline scan of **tracked files** (`git ls-files`) to measure repo-wide agent context debt before opening a PR.
+
+```bash
+# Terminal report with debt score (0–100) and grade
+contextlevy scan
+
+# Compact summary
+contextlevy scan --format compact
+
+# JSON for dashboards, badges, and automation
+contextlevy scan --format json
+```
+
+The debt score weights:
+
+- **55%** — tokens in indexable junk categories (coverage, `dist/`, generated output, etc.)
+- **30%** — breadth of high-impact classified files
+- **15%** — total estimated token volume
+
+Grades: **A** (0–10) through **F** (71–100). Higher score = more context debt.
+
 ### `contextlevy check` (recommended)
 
 Analyze changes against a base ref. `diff` is an alias.
@@ -44,6 +67,78 @@ contextlevy check --base main --strict
 contextlevy check --base main --fail-above-tokens 10000
 ```
 
+### `contextlevy fix`
+
+Suggest or append `.gitignore` and `.cursorignore` patterns for indexable junk paths (coverage, `dist/`, generated output, etc.). **Defaults to dry-run** — pass `--write` to append missing patterns only.
+
+```bash
+# Preview from full-repo scan (default)
+contextlevy fix
+
+# Append to both ignore files
+contextlevy fix --write
+
+# Only .cursorignore, based on current diff
+contextlevy fix --from check --base main --target cursorignore --write
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--write` | off | Append missing patterns (otherwise dry-run) |
+| `--target` | `both` | `gitignore`, `cursorignore`, or `both` |
+| `--from` | `scan` | `scan` (tracked files) or `check` (git diff) |
+| `--base <ref>` | `main` | Base ref when `--from check` |
+| `--staged` | off | Staged diff only when `--from check` |
+
+### `contextlevy badge`
+
+Generate shields.io badge markdown for READMEs or PR templates.
+
+```bash
+# Repo context debt badge from scan
+contextlevy badge --style debt
+
+# PR risk badge from current diff
+contextlevy badge --from check --base main --style risk
+
+# Token delta badge
+contextlevy badge --from check --style tokens --format url
+
+# From saved scan JSON
+contextlevy scan --format json > .contextlevy/scan.json
+contextlevy badge --style debt --input .contextlevy/scan.json
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--style` | `risk` | `risk`, `debt`, or `tokens` |
+| `--from` | `scan` | `scan` or `check` (ignored when `--input` is set) |
+| `--format` | `markdown` | `markdown`, `url`, or `json` |
+| `--input <file>` | — | JSON from `scan` or `check --format json` |
+
+### `contextlevy hook install`
+
+Install pre-push or pre-commit hooks. Detects **Husky**, **lefthook**, or plain `.git/hooks`.
+
+```bash
+# Pre-push gate (default)
+contextlevy hook install
+
+# Staged pre-commit gate
+contextlevy hook install --pre-commit --no-pre-push
+
+# Preview without writing
+contextlevy hook install --dry-run
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--pre-push` | on | Install `pre-push` hook |
+| `--pre-commit` | off | Install `pre-commit` hook (staged changes) |
+| `--base <ref>` | `main` | Base ref for pre-push hook |
+| `--dry-run` | off | Preview hook changes |
+| `--force` | off | Replace existing ContextLevy hook block |
+
 ### `contextlevy init`
 
 Scaffold configuration (and optionally a GitHub workflow):
@@ -51,12 +146,24 @@ Scaffold configuration (and optionally a GitHub workflow):
 ```bash
 contextlevy init
 contextlevy init --mode strict --workflow
+contextlevy init --full
 contextlevy init --dry-run
 ```
 
+`--full` writes config, workflow, pre-push hook, and prints a branch-protection checklist.
+
 Refuses to overwrite existing files unless `--force`.
 
-#### Flags
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--mode <mode>` | `advisory` | `advisory`, `strict`, `minimal`, or `legacy` |
+| `--workflow` | off | Also write `.github/workflows/contextlevy.yml` |
+| `--full` | off | Config + workflow + pre-push hook + branch-protection hints |
+| `--pre-commit` | off | With `--full`, also install a staged pre-commit hook |
+| `--dry-run` | off | Preview files without writing |
+| `--force` | off | Overwrite existing scaffolded files |
+
+### `contextlevy check` / `contextlevy diff` flags
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -77,7 +184,7 @@ Refuses to overwrite existing files unless `--force`.
 
 #### JSON output
 
-`--format json` includes enriched fields for hooks:
+`contextlevy check --format json` includes enriched fields for hooks:
 
 - `riskLevel`
 - `highImpactCategories`
@@ -90,21 +197,7 @@ The CLI reads `contextlevy.config.yml` (and other [supported config paths](CONFI
 
 When no config exists, the CLI prints: `Run: npx contextlevy init`
 
-## Pre-push hook
-
-```json
-{
-  "scripts": {
-    "contextlevy": "contextlevy check --base origin/main --fail-on-config"
-  }
-}
-```
-
-With [Husky](https://typicode.github.io/husky/):
-
-```bash
-npx husky add .husky/pre-push "npm run contextlevy"
-```
+Prefer `contextlevy hook install` or `contextlevy init --full` over manual hook wiring.
 
 ## Notes
 

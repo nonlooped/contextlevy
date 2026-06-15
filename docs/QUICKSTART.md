@@ -5,14 +5,17 @@ ContextLevy is a **repo hygiene linter for agent-heavy teams**. It flags PR diff
 ## 60 seconds
 
 ```bash
-# 1. Scan your current diff (no install required)
+# 1. Baseline repo context debt (tracked files)
+npx contextlevy scan
+
+# 2. Scan your current diff (no install required)
 npx contextlevy check --base main
 
-# 2. Add config when you're ready
+# 3. Add config when you're ready
 npx contextlevy init
 
-# 3. Optional: add GitHub Action
-npx contextlevy init --workflow
+# 4. Optional: config + workflow + pre-push hook in one step
+npx contextlevy init --full
 ```
 
 ## Modes (one knob)
@@ -54,6 +57,12 @@ npx contextlevy check --base main --strict
 `--strict` applies category-based fails (build artifacts, coverage, etc.) without editing config.
 
 ## Pre-push hook
+
+```bash
+npx contextlevy hook install
+```
+
+Or wire manually in `package.json`:
 
 ```json
 {

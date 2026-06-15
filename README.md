@@ -93,9 +93,13 @@ It only uses GitHub pull request metadata and diff patches available inside the 
 # Scan your diff locally (no config required)
 npx contextlevy check --base main
 
+# Baseline repo context debt before opening a PR
+npx contextlevy scan
+
 # Scaffold config + optional workflow
 npx contextlevy init
 npx contextlevy init --workflow --mode strict
+npx contextlevy init --full
 ```
 
 See [docs/QUICKSTART.md](docs/QUICKSTART.md) for modes, allowlists, and pre-push hooks.
@@ -133,6 +137,8 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  checks: write
+  security-events: write
 
 jobs:
   contextlevy:
@@ -140,14 +146,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: nonlooped/contextlevy@v2
         with:
           github-token: ${{ github.token }}
 ```
 
-That is the full setup. ContextLevy reads your PR diff, estimates context weight, and comments when thresholds are exceeded.
+That is the full setup. ContextLevy reads your PR diff, estimates context weight, posts PR comments, and can publish a **Check Run** and **SARIF** report for branch protection and Code Scanning.
 
 Add `contextlevy.config.yml` to tune thresholds, ignore paths, and fail modes — see [docs/CONFIG.md](docs/CONFIG.md).
 
@@ -163,13 +169,15 @@ Works for many internal PRs without installing the app. Fork PRs may be read-onl
 
 ```bash
 npm install -g contextlevy
+contextlevy scan
 contextlevy check --base main
-contextlevy check --base origin/main --format json --fail-on-config
-contextlevy check --strict
-contextlevy init --workflow
+contextlevy fix --write
+contextlevy badge --style debt
+contextlevy hook install
+contextlevy init --full
 ```
 
-See [docs/CLI.md](docs/CLI.md) for flags, exit codes, and pre-push hook recipes.
+See [docs/CLI.md](docs/CLI.md) for `scan`, `fix`, `badge`, `hook install`, exit codes, and pre-push hook recipes.
 
 ### Agent skills
 

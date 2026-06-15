@@ -1,9 +1,9 @@
 ---
 name: contextlevy-cli
-description: Install and use the ContextLevy CLI for local AI context cost checks from git diffs. Covers npm install, diff commands, JSON output, exit codes, and pre-push hooks. Use when the user asks about contextlevy diff, pre-push context checks, local ContextLevy setup, or installing contextlevy via npm.
+description: Install and use the ContextLevy CLI for local AI context cost checks from git diffs. Covers npm install, scan/fix/badge/hook commands, JSON output, exit codes, and pre-push hooks. Use when the user asks about contextlevy diff, pre-push context checks, local ContextLevy setup, or installing contextlevy via npm.
 metadata:
   author: nonlooped
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # ContextLevy CLI
@@ -40,8 +40,23 @@ Requires Node.js 20+ and `git` on PATH.
 # Start here (no config required)
 npx contextlevy check --base main
 
-# Scaffold config
-npx contextlevy init
+# Baseline repo context debt (tracked files)
+npx contextlevy scan
+
+# Scaffold config + workflow + pre-push hook
+npx contextlevy init --full
+
+# Suggest ignore patterns (dry-run by default)
+npx contextlevy fix
+npx contextlevy fix --write
+
+# README/PR badges
+npx contextlevy badge --style debt
+npx contextlevy badge --from check --style risk
+
+# Install hooks (Husky, lefthook, or .git/hooks)
+npx contextlevy hook install
+npx contextlevy hook install --pre-commit --no-pre-push
 
 # Working tree vs main
 contextlevy check --base main
@@ -70,14 +85,23 @@ contextlevy check --base main --strict
 ### CLI caveats
 
 - Analyzes **tracked** changes visible to `git diff`. Stage new files with `git add`, or pass `--staged`.
+- `scan` and `fix --from scan` use `git ls-files` for a repo-wide baseline.
 - Reuses the same config file and estimation modes as the GitHub Action.
 
 ### Pre-push hook
 
+Prefer the built-in installer:
+
+```bash
+npx contextlevy hook install
+```
+
+Or wire manually:
+
 ```json
 {
   "scripts": {
-    "contextlevy": "contextlevy diff --base origin/main --fail-on-config"
+    "contextlevy": "contextlevy check --base origin/main --fail-on-config"
   }
 }
 ```
@@ -132,6 +156,8 @@ For full config tables, severity levels, and recipes, see [reference.md](../cont
 When helping a user set up the ContextLevy CLI:
 
 1. Ask whether they need **local checks** (CLI), **PR comments** ([contextlevy](../contextlevy/SKILL.md)), or **both**.
-2. Add `contextlevy.config.yml` with `fail-on-severity` or `fail-above-tokens` when using `--fail-on-config`.
-3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
-4. Recommend `fail-on-config` in pre-push hooks; use `fail-on-severity: high` in CI for advisory-first teams.
+2. Run `contextlevy scan` first for repo-wide debt, then `contextlevy check` before opening PRs.
+3. Use `contextlevy fix --write` to append missing ignore patterns; use `contextlevy init --full` for one-shot setup.
+4. Add `contextlevy.config.yml` with `fail-on-severity` or `fail-above-tokens` when using `--fail-on-config`.
+5. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
+6. Recommend `contextlevy hook install` or `fail-on-config` in pre-push hooks; use `fail-on-severity: high` in CI for advisory-first teams.

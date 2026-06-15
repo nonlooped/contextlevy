@@ -8,11 +8,13 @@ Install the [ContextLevy GitHub App](https://github.com/apps/contextlevy) and ad
 
 ## Action inputs
 
-The action accepts **authentication inputs only**. All behavior tuning belongs in the config file.
+The action accepts authentication and reporting inputs. Behavior tuning belongs in the config file.
 
 | Input | Default | Description |
 | --- | --- | --- |
 | `github-token` | `GITHUB_TOKEN` env | Fallback token for reading PR files and writing comments |
+| `create-check` | `true` | Publish a GitHub Check Run named **ContextLevy** (`checks: write`) |
+| `upload-sarif` | `true` | Upload SARIF for Code Scanning annotations (`security-events: write`) |
 | `app-client-id` | `CONTEXTLEVY_APP_ID` / `CONTEXTLEVY_APP_CLIENT_ID` env | Numeric GitHub App ID |
 | `app-private-key` | `CONTEXTLEVY_APP_PRIVATE_KEY` env | GitHub App private key PEM |
 | `app-installation-id` | `CONTEXTLEVY_APP_INSTALLATION_ID` env | Optional GitHub App installation ID override |
@@ -29,6 +31,12 @@ Use these in downstream workflow steps:
 | `analyzed-file-count` | integer string | `"12"` | Changed files included in the estimate |
 | `token-source` | string | `"app"` | Auth source: `app`, `github-token`, or `GITHUB_TOKEN` |
 | `estimation-mode` | string | `"simple"` | Estimation mode used: `simple` or `tokenizer` |
+| `risk-level` | string | `"High"` | Aggregated PR context risk |
+| `check-conclusion` | string | `"neutral"` | GitHub Check Run conclusion |
+| `badge-url` | string | shields.io URL | Badge image URL for PR/README |
+| `badge-markdown` | string | `![Context risk](...)` | Ready-to-paste badge markdown |
+| `sarif-path` | string | `contextlevy-results.sarif.json` | Generated SARIF file path |
+| `sarif-uploaded` | string | `"true"` | Whether SARIF upload succeeded |
 
 ```yaml
 - id: contextlevy
@@ -38,9 +46,44 @@ Use these in downstream workflow steps:
   run: echo "Context cost too high"
 ```
 
+## Check Run and SARIF
+
+When `create-check` is enabled, ContextLevy publishes a **Check Run** named `ContextLevy`. Require it in branch protection for merge gating.
+
+When `upload-sarif` is enabled, ContextLevy uploads a SARIF report to **Code Scanning** and writes `contextlevy-results.sarif.json` to the workspace. Fork PRs or missing permissions produce a warning; analysis still completes.
+
+Recommended workflow permissions:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+  security-events: write
+```
+
 ## Job summary
 
 ContextLevy also writes a **job summary** with risk level and top findings for every run — even when the PR comment is skipped or cannot be posted.
+
+## PR badges
+
+Use action outputs in a follow-up step or README:
+
+```yaml
+- id: contextlevy
+  uses: nonlooped/contextlevy@v2
+
+- run: echo "${{ steps.contextlevy.outputs.badge-markdown }}"
+```
+
+For repo-level debt badges locally:
+
+```bash
+contextlevy scan --format json > .contextlevy/scan.json
+contextlevy badge --style debt --input .contextlevy/scan.json
+```
 
 ## Fork pull requests
 

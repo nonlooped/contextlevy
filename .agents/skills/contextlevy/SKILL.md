@@ -1,9 +1,9 @@
 ---
 name: contextlevy
-description: Set up and use the ContextLevy GitHub Action to estimate AI agent context cost on pull requests. Covers app install, workflow setup, PR comments, fail thresholds, and action outputs. Use when the user asks about ContextLevy on GitHub, PR context bloat, coverage/generated files in diffs, or installing the ContextLevy action.
+description: Set up and use the ContextLevy GitHub Action to estimate AI agent context cost on pull requests. Covers app install, workflow setup, PR comments, Check Runs, SARIF, fail thresholds, and action outputs. Use when the user asks about ContextLevy on GitHub, PR context bloat, coverage/generated files in diffs, or installing the ContextLevy action.
 metadata:
   author: nonlooped
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # ContextLevy (GitHub Action)
@@ -47,13 +47,15 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  checks: write
+  security-events: write
 
 jobs:
   contextlevy:
-    name: Check AI context cost
+    name: Check repo context hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: nonlooped/contextlevy@v2
         with:
           github-token: ${{ github.token }}
@@ -63,8 +65,18 @@ jobs:
 
 - Reads config from the **base branch** (a PR cannot silence the check by editing `contextlevy.config.yml` in the same diff).
 - Posts a PR comment when estimated tokens exceed `token-threshold`.
+- Publishes a **Check Run** named `ContextLevy` when `create-check` is enabled (default).
+- Uploads **SARIF** to Code Scanning when `upload-sarif` is enabled (default).
 - **Fail mode** (`fail-on-severity` or `fail-above-tokens` in config) fails the workflow even when the comment is skipped.
 - Workflow YAML only needs auth inputs; all tuning lives in `contextlevy.config.yml`.
+
+### Action inputs
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `github-token` | `GITHUB_TOKEN` | Fallback token for PR files and comments |
+| `create-check` | `true` | Publish GitHub Check Run (`checks: write`) |
+| `upload-sarif` | `true` | Upload SARIF for Code Scanning (`security-events: write`) |
 
 ### Action outputs (for downstream steps)
 
@@ -74,6 +86,12 @@ jobs:
 | `analyzed-file-count` | Changed files included in the estimate |
 | `token-source` | Auth source: `app`, `github-token`, or `GITHUB_TOKEN` |
 | `estimation-mode` | `simple` or `tokenizer` |
+| `risk-level` | Aggregated PR context risk: Low, Medium, High, or Critical |
+| `check-conclusion` | GitHub Check Run conclusion when `create-check` is enabled |
+| `badge-url` | shields.io badge URL for PR context risk |
+| `badge-markdown` | Ready-to-paste badge markdown |
+| `sarif-path` | Path to generated SARIF in the workspace |
+| `sarif-uploaded` | Whether SARIF upload succeeded (`true`/`false`) |
 
 ---
 
@@ -127,7 +145,8 @@ When helping a user set up ContextLevy on GitHub:
 
 1. Confirm they need **PR comments** (Action), **local checks** ([contextlevy-cli](../contextlevy-cli/SKILL.md)), or **both**.
 2. Add `contextlevy.config.yml` before the workflow — keep workflow YAML minimal.
-3. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
-4. Recommend `npx contextlevy init` then `mode: advisory` for new repos; `mode: strict` when teams want artifact fails.
-5. Pair CLI `check --strict` with pre-push hooks; use GitHub Action for PR comments.
-5. Do **not** put GitHub App private keys in `contextlevy.config.yml` — use secrets/variables.
+3. Include `checks: write` and `security-events: write` when using Check Runs and SARIF (defaults).
+4. For monorepos, use `ignore-paths` for vendored/generated trees and `custom-rules` for project-specific paths.
+5. Recommend `npx contextlevy init --full` for new repos; `mode: advisory` for advisory-first teams, `mode: strict` for artifact fails.
+6. Pair CLI `check --strict` with `contextlevy hook install`; use GitHub Action for PR comments and branch protection.
+7. Do **not** put GitHub App private keys in `contextlevy.config.yml` — use secrets/variables.
