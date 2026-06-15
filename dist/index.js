@@ -33694,7 +33694,9 @@ function readAppCredentials() {
         return null;
     }
     if (!appId || !privateKeyRaw) {
-        throw new Error('GitHub App auth requires both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY.');
+        core.warning('Incomplete GitHub App credentials detected. Falling back to github-token / GITHUB_TOKEN. ' +
+            'Configure both CONTEXTLEVY_APP_ID (or CONTEXTLEVY_APP_CLIENT_ID) and CONTEXTLEVY_APP_PRIVATE_KEY to use app auth.');
+        return null;
     }
     return {
         appId,

@@ -86,10 +86,13 @@ describe('readAppCredentials', () => {
     });
   });
 
-  it('requires both app id and private key when partially configured', () => {
+  it('falls back when app credentials are partially configured', () => {
     process.env.CONTEXTLEVY_APP_CLIENT_ID = '123456';
 
-    expect(() => readAppCredentials()).toThrow(/requires both/i);
+    expect(readAppCredentials()).toBeNull();
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Incomplete GitHub App credentials'),
+    );
   });
 });
 
