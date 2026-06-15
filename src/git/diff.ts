@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
 import type { PullRequestFileLike } from '../core/types';
+import { execGit } from './repo';
 
 export function parseNumstatLine(line: string): PullRequestFileLike | null {
   const match = line.match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
@@ -33,10 +33,10 @@ export function listChangedFiles(
   cwd?: string,
 ): PullRequestFileLike[] {
   const stagedArgs = staged ? ['--cached'] : [];
-  const numstat = execFileSync('git', ['diff', '--numstat', ...stagedArgs, baseRef], {
+  const numstat = execGit(['diff', '--numstat', ...stagedArgs, baseRef], {
     encoding: 'utf8',
     cwd,
-  });
+  }) as string;
 
   const files: PullRequestFileLike[] = [];
   for (const line of numstat.split('\n')) {
@@ -56,10 +56,10 @@ function loadPatchForFile(
 ): string | undefined {
   const stagedArgs = staged ? ['--cached'] : [];
   try {
-    return execFileSync('git', ['diff', ...stagedArgs, baseRef, '--', filename], {
+    return execGit(['diff', ...stagedArgs, baseRef, '--', filename], {
       encoding: 'utf8',
       cwd,
-    });
+    }) as string;
   } catch {
     return undefined;
   }
