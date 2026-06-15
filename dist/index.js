@@ -32285,10 +32285,13 @@ const rules_1 = __nccwpck_require__(1688);
 const tokens_1 = __nccwpck_require__(1129);
 function resolveFileClassification(filename, estimatedTokens, options) {
     let rule = (0, rules_1.classifyPath)(filename, options.customRules);
-    if ((0, paths_1.matchesAnyPathPattern)(filename, options.allowPaths)) {
+    const isAllowListed = (0, paths_1.matchesAnyPathPattern)(filename, options.allowPaths);
+    if (isAllowListed) {
         rule = rules_1.DEFAULT_MATCH;
     }
-    if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
+    if (!isAllowListed &&
+        estimatedTokens >= options.largeFileTokenThreshold &&
+        rule.category === 'other') {
         rule = (0, rules_1.largeFileMatch)();
     }
     return rule;
