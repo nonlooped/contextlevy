@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] — 2026-06-15
+
+### Added
+
+- `contextlevy scan` — baseline scan of tracked files with repo context debt score (0–100) and grade.
+- `contextlevy fix` — suggest or append `.gitignore` / `.cursorignore` patterns for indexable junk (dry-run by default).
+- `contextlevy badge` — generate shields.io markdown/URL badges for PR risk, repo debt, or token delta.
+- `contextlevy hook install` — install pre-push or pre-commit hooks (Husky, lefthook, or plain `.git/hooks`).
+- `contextlevy init --full` — scaffold config, workflow, pre-push hook, and branch-protection checklist.
+- GitHub Check Run named **ContextLevy** with file annotations (`create-check` input, default on).
+- SARIF upload for Code Scanning plus workspace artifact (`upload-sarif` input, default on).
+- Action outputs: `risk-level`, `check-conclusion`, `badge-url`, `badge-markdown`, `sarif-path`, `sarif-uploaded`.
+- Shared category severity helpers (`isHardFailCategory`, SARIF/check annotation levels) aligned with `HARD_FAIL_CATEGORIES`.
+- Git repo/ref guards with friendly CLI errors (`assertGitRepo`, `assertGitRef`).
+
+### Changed
+
+- `analyzePullRequestFiles` and `analyzeRepositoryFiles` share `resolveFileClassification` for consistent rules.
+- `loadAnalysis` centralizes config resolution and returns `trackedFileCount` / `settings` for scan-based commands.
+- Init workflow template and README examples use `actions/checkout@v6` and include `checks: write` / `security-events: write`.
+- CLI and Action docs expanded for new commands, inputs, outputs, and hook install flags.
+
 ## [2.4.0] — 2026-05-25
 
 ### Added
@@ -144,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/nonlooped/contextlevy/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/nonlooped/contextlevy/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/nonlooped/contextlevy/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/nonlooped/contextlevy/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/nonlooped/contextlevy/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/nonlooped/contextlevy/compare/v2.2.1...v2.2.2
