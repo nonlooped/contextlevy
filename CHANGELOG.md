@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] — 2026-06-15
+
+### Fixed
+
+- Allow-listed paths are no longer promoted to `large-file` when they exceed `large-file-token-threshold`.
+
+### Changed
+
+- Dogfood `contextlevy.config.yml` allowlists `dist/**`, `examples/high-impact-pr/**`, and `package-lock.json`.
+- `docs/CONFIG.md` and `docs/QUICKSTART.md` clarify that allowlisted paths suppress `large-file` promotion.
+
+### Removed
+
+- Unused `.github/assets/ContextLevyLogo.png` asset.
+
 ## [2.5.0] — 2026-06-15
 
 ### Added
@@ -166,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dogfood workflow grants `issues: write` for PR comment creation.
 - `dist/` bundle is tracked consistently (removed from `.gitignore`).
 
-[Unreleased]: https://github.com/nonlooped/contextlevy/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/nonlooped/contextlevy/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/nonlooped/contextlevy/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/nonlooped/contextlevy/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/nonlooped/contextlevy/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/nonlooped/contextlevy/compare/v2.2.2...v2.3.0
