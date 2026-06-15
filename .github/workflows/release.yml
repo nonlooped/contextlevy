@@ -102,11 +102,16 @@ jobs:
       - name: Publish to npm
         if: steps.package.outputs.publish == 'true'
         env:
-          # Optional fallback when npm trusted publishing is misconfigured.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm --version
           node --version
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+            echo "Using NPM_TOKEN secret for publish."
+          else
+            echo "Using npm trusted publishing (OIDC)."
+          fi
           npm publish --provenance --access public
 
       - name: Push version tag
