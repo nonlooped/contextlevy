@@ -32275,12 +32275,24 @@ function resolveSettings(config) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveFileClassification = resolveFileClassification;
+exports.uniqueSuggestions = uniqueSuggestions;
 exports.analyzePullRequestFiles = analyzePullRequestFiles;
 exports.getHighImpactFiles = getHighImpactFiles;
 const categories_1 = __nccwpck_require__(2711);
 const paths_1 = __nccwpck_require__(6107);
 const rules_1 = __nccwpck_require__(1688);
 const tokens_1 = __nccwpck_require__(1129);
+function resolveFileClassification(filename, estimatedTokens, options) {
+    let rule = (0, rules_1.classifyPath)(filename, options.customRules);
+    if ((0, paths_1.matchesAnyPathPattern)(filename, options.allowPaths)) {
+        rule = rules_1.DEFAULT_MATCH;
+    }
+    if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
+        rule = (0, rules_1.largeFileMatch)();
+    }
+    return rule;
+}
 function uniqueSuggestions(values) {
     const seen = new Set();
     const out = [];
@@ -32307,13 +32319,7 @@ function analyzePullRequestFiles(files, options) {
         if (estimatedTokens <= 0) {
             continue;
         }
-        let rule = (0, rules_1.classifyPath)(file.filename, options.customRules);
-        if ((0, paths_1.matchesAnyPathPattern)(file.filename, options.allowPaths)) {
-            rule = rules_1.DEFAULT_MATCH;
-        }
-        if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
-            rule = (0, rules_1.largeFileMatch)();
-        }
+        const rule = resolveFileClassification(file.filename, estimatedTokens, options);
         analyzed.push({
             filename: file.filename,
             status: file.status,
@@ -32346,6 +32352,9 @@ function getHighImpactFiles(analysis, maxItems) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WARN_ONLY_CATEGORIES = exports.HARD_FAIL_CATEGORIES = void 0;
+exports.isHardFailCategory = isHardFailCategory;
+exports.sarifLevelForCategory = sarifLevelForCategory;
+exports.checkAnnotationLevelForCategory = checkAnnotationLevelForCategory;
 exports.getCategoryNarrativeLabel = getCategoryNarrativeLabel;
 exports.sortFilesByDisplayPriority = sortFilesByDisplayPriority;
 /** Categories that indicate committed repo junk — strict mode fails on these. */
@@ -32359,6 +32368,28 @@ exports.HARD_FAIL_CATEGORIES = [
     'source-map',
     'minified',
 ];
+const HARD_FAIL_CATEGORY_SET = new Set(exports.HARD_FAIL_CATEGORIES);
+function isHardFailCategory(category) {
+    return HARD_FAIL_CATEGORY_SET.has(category);
+}
+function sarifLevelForCategory(category) {
+    if (isHardFailCategory(category)) {
+        return 'error';
+    }
+    if (category === 'other') {
+        return 'note';
+    }
+    return 'warning';
+}
+function checkAnnotationLevelForCategory(category) {
+    if (isHardFailCategory(category)) {
+        return 'failure';
+    }
+    if (category === 'other') {
+        return 'notice';
+    }
+    return 'warning';
+}
 /** Categories that are often intentional — warn in comments, never fail alone. */
 exports.WARN_ONLY_CATEGORIES = [
     'lockfile',
@@ -33162,6 +33193,56 @@ exports.CONTEXT_CATEGORIES = [
 
 /***/ }),
 
+/***/ 1496:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildRiskBadgeUrl = buildRiskBadgeUrl;
+exports.buildDebtBadgeUrl = buildDebtBadgeUrl;
+exports.buildTokenBadgeUrl = buildTokenBadgeUrl;
+exports.buildBadgeMarkdown = buildBadgeMarkdown;
+const shared_1 = __nccwpck_require__(9830);
+const RISK_COLORS = {
+    Low: 'brightgreen',
+    Medium: 'yellow',
+    High: 'orange',
+    Critical: 'red',
+};
+const GRADE_COLORS = {
+    A: 'brightgreen',
+    B: 'green',
+    C: 'yellow',
+    D: 'orange',
+    F: 'red',
+};
+function encodeShieldSegment(value) {
+    return encodeURIComponent(value.replace(/-/g, '--').replace(/_/g, '__'));
+}
+function buildRiskBadgeUrl(riskLevel, totalTokens) {
+    const message = totalTokens !== undefined
+        ? `${riskLevel} · ${(0, shared_1.formatCompactTokens)(totalTokens)} tokens`
+        : riskLevel;
+    const color = RISK_COLORS[riskLevel];
+    return `https://img.shields.io/badge/${encodeShieldSegment('context risk')}-${encodeShieldSegment(message)}-${color}?logo=github&labelColor=24292e`;
+}
+function buildDebtBadgeUrl(score, grade) {
+    const message = `${grade} · ${score}/100`;
+    const color = GRADE_COLORS[grade];
+    return `https://img.shields.io/badge/${encodeShieldSegment('context debt')}-${encodeShieldSegment(message)}-${color}?logo=github&labelColor=24292e`;
+}
+function buildTokenBadgeUrl(analysis) {
+    const message = `+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)} tokens`;
+    return `https://img.shields.io/badge/${encodeShieldSegment('context delta')}-${encodeShieldSegment(message)}-blue?logo=github&labelColor=24292e`;
+}
+function buildBadgeMarkdown(imageUrl, alt) {
+    return `![${alt}](${imageUrl})`;
+}
+
+
+/***/ }),
+
 /***/ 5758:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -33366,6 +33447,101 @@ function formatDefaultComment(analysis, options) {
     }
     sections.push('', '**Suggestions**', suggestionLines, '', '_Different models tokenize differently, and agents may not read every changed file. ContextLevy estimates context risk, not exact billing._', '', '_ContextLevy runs locally in CI and does not send code to an external API._', '', exports.COMMENT_MARKER);
     return sections.join('\n');
+}
+
+
+/***/ }),
+
+/***/ 6986:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildSarifReport = buildSarifReport;
+const analyze_1 = __nccwpck_require__(3127);
+const categories_1 = __nccwpck_require__(2711);
+const shared_1 = __nccwpck_require__(9830);
+const SARIF_SCHEMA = 'https://json.schemastore.org/sarif-2.1.0.json';
+const TOOL_URI = 'https://github.com/nonlooped/contextlevy';
+const RULE_DESCRIPTIONS = {
+    generated: 'Generated code adds repetitive, low-value agent context.',
+    coverage: 'Coverage artifacts are noisy and rarely useful for coding agents.',
+    'build-output': 'Build artifacts are poor context for agent-assisted review.',
+    lockfile: 'Lockfile churn can dominate agent context in dependency PRs.',
+    'agent-config': 'Agent instruction changes affect future agent behavior.',
+    snapshot: 'Snapshot files are often large and repetitive in agent context.',
+    log: 'Log files are accidental noise in repository context.',
+    minified: 'Minified assets are poor context for text-based coding agents.',
+    vendor: 'Vendored trees are bulky and rarely useful as agent context.',
+    'source-map': 'Source maps add bulk without helping coding agents.',
+    'dependency-dir': 'Dependency directories should not be committed.',
+    'cache-dir': 'Cache directories are ephemeral build state.',
+    'test-output': 'Test output directories should not be committed.',
+    fixture: 'Large fixtures can dominate agent context.',
+    'binary-asset': 'Binary assets add diff noise without helping text agents.',
+    openapi: 'Generated API clients are often huge and repetitive.',
+    protobuf: 'Protobuf generated files are better regenerated locally.',
+    'large-file': 'Large added diffs carry high context cost for agents.',
+};
+function ruleIdForCategory(category) {
+    return `contextlevy/${category}`;
+}
+function buildRules(files) {
+    const categories = new Set(files.map((file) => file.category));
+    return [...categories].map((category) => ({
+        id: ruleIdForCategory(category),
+        shortDescription: {
+            text: category,
+        },
+        fullDescription: {
+            text: RULE_DESCRIPTIONS[category] ?? 'File may add avoidable agent context overhead.',
+        },
+        helpUri: `${TOOL_URI}#what-it-catches`,
+    }));
+}
+function buildResult(file) {
+    return {
+        ruleId: ruleIdForCategory(file.category),
+        level: (0, categories_1.sarifLevelForCategory)(file.category),
+        message: {
+            text: `${file.label} (+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)} estimated tokens)`,
+        },
+        locations: [
+            {
+                physicalLocation: {
+                    artifactLocation: {
+                        uri: file.filename,
+                    },
+                    // Category-level finding — no line-specific location in diff/scan analysis.
+                    region: {
+                        startLine: 1,
+                        startColumn: 1,
+                    },
+                },
+            },
+        ],
+    };
+}
+function buildSarifReport(analysis, options = {}) {
+    const maxResults = options.maxResults ?? 50;
+    const findings = (0, analyze_1.getHighImpactFiles)(analysis, analysis.files.length).slice(0, maxResults);
+    return {
+        version: '2.1.0',
+        $schema: SARIF_SCHEMA,
+        runs: [
+            {
+                tool: {
+                    driver: {
+                        name: 'ContextLevy',
+                        informationUri: TOOL_URI,
+                        rules: buildRules(findings),
+                    },
+                },
+                results: findings.map(buildResult),
+            },
+        ],
+    };
 }
 
 
@@ -33606,6 +33782,134 @@ async function resolveGithubToken(owner, repo) {
 
 /***/ }),
 
+/***/ 5611:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CHECK_RUN_NAME = void 0;
+exports.resolveCheckConclusion = resolveCheckConclusion;
+exports.isCheckAccessError = isCheckAccessError;
+exports.publishCheckRun = publishCheckRun;
+const core = __importStar(__nccwpck_require__(7484));
+const analyze_1 = __nccwpck_require__(3127);
+const categories_1 = __nccwpck_require__(2711);
+const severity_1 = __nccwpck_require__(432);
+const summary_1 = __nccwpck_require__(1363);
+const shared_1 = __nccwpck_require__(9830);
+exports.CHECK_RUN_NAME = 'ContextLevy';
+const MAX_ANNOTATIONS = 50;
+function resolveCheckConclusion(failDecision, riskLevel) {
+    if (failDecision.fail) {
+        return 'failure';
+    }
+    if (riskLevel === 'High' || riskLevel === 'Critical') {
+        return 'neutral';
+    }
+    return 'success';
+}
+function buildAnnotations(analysis, maxItems) {
+    const findings = (0, analyze_1.getHighImpactFiles)(analysis, maxItems).slice(0, MAX_ANNOTATIONS);
+    return findings.map((file) => ({
+        path: file.filename,
+        // Category-level finding — no line-specific location in PR diff analysis.
+        start_line: 1,
+        end_line: 1,
+        annotation_level: (0, categories_1.checkAnnotationLevelForCategory)(file.category),
+        message: `${file.label} (+${(0, shared_1.formatCompactTokens)(file.estimatedTokens)} estimated tokens)`,
+        title: file.category,
+    }));
+}
+function buildCheckSummary(analysis, settings, failDecision, riskLevel) {
+    const reviewSummary = (0, summary_1.buildReviewSummary)(analysis);
+    const lines = [
+        reviewSummary.headline,
+        '',
+        `Estimated **+${(0, shared_1.formatCompactTokens)(analysis.totalEstimatedTokens)}** net-new context tokens across **${analysis.files.length}** analyzed file(s).`,
+        `Risk level: ${(0, severity_1.formatRiskLevel)(riskLevel)}`,
+        `Estimation mode: \`${settings.estimationMode}\``,
+    ];
+    if (failDecision.fail) {
+        lines.push('', `**Failed:** ${failDecision.reason ?? 'Threshold exceeded.'}`);
+    }
+    return lines.join('\n');
+}
+function isCheckAccessError(error) {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const candidate = error;
+    return (candidate.status === 403 ||
+        candidate.status === 404 ||
+        Boolean(candidate.message?.includes('Resource not accessible by integration')));
+}
+async function publishCheckRun(octokit, owner, repo, headSha, analysis, settings, failDecision) {
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, settings.maxHighImpactItems);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, settings.severityThresholds);
+    const conclusion = resolveCheckConclusion(failDecision, riskLevel);
+    try {
+        await octokit.rest.checks.create({
+            owner,
+            repo,
+            name: exports.CHECK_RUN_NAME,
+            head_sha: headSha,
+            status: 'completed',
+            conclusion,
+            output: {
+                title: `Context risk: ${riskLevel}`,
+                summary: buildCheckSummary(analysis, settings, failDecision, riskLevel),
+                annotations: buildAnnotations(analysis, settings.maxHighImpactItems),
+            },
+        });
+        core.info(`Published check run "${exports.CHECK_RUN_NAME}" with conclusion ${conclusion}.`);
+        return conclusion;
+    }
+    catch (error) {
+        if (isCheckAccessError(error)) {
+            core.warning('ContextLevy could not publish a GitHub Check Run with the current token. Add checks: write permission.');
+            return conclusion;
+        }
+        throw error;
+    }
+}
+
+
+/***/ }),
+
 /***/ 6645:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -33833,12 +34137,23 @@ const settings_1 = __nccwpck_require__(4661);
 const analyze_1 = __nccwpck_require__(3127);
 const comment_gate_1 = __nccwpck_require__(1148);
 const fail_1 = __nccwpck_require__(5719);
+const severity_1 = __nccwpck_require__(432);
+const badge_1 = __nccwpck_require__(1496);
 const comment_1 = __nccwpck_require__(5758);
 const auth_1 = __nccwpck_require__(4921);
+const check_1 = __nccwpck_require__(5611);
 const comments_1 = __nccwpck_require__(6645);
 const config_loader_1 = __nccwpck_require__(9857);
 const files_1 = __nccwpck_require__(5772);
+const sarif_upload_1 = __nccwpck_require__(8094);
 const summary_1 = __nccwpck_require__(2935);
+function parseActionBoolean(value, defaultValue) {
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) {
+        return defaultValue;
+    }
+    return trimmed !== 'false' && trimmed !== '0' && trimmed !== 'no';
+}
 async function getAuthenticatedLogin(octokit) {
     try {
         const response = await octokit.rest.users.getAuthenticated();
@@ -33856,7 +34171,11 @@ async function run() {
         return;
     }
     const pullNumber = context.payload.pull_request.number;
+    const headSha = context.payload.pull_request.head?.sha;
+    const headRef = context.payload.pull_request.head?.ref;
     const { owner, repo } = context.repo;
+    const createCheck = parseActionBoolean(core.getInput('create-check'), true);
+    const uploadSarif = parseActionBoolean(core.getInput('upload-sarif'), true);
     const { token, source } = await (0, auth_1.resolveGithubToken)(owner, repo);
     core.setOutput('token-source', source);
     const octokit = github.getOctokit(token);
@@ -33888,9 +34207,15 @@ async function run() {
         estimationMode: settings.estimationMode,
         customRules: settings.customRules,
     });
+    const highImpact = (0, analyze_1.getHighImpactFiles)(analysis, settings.maxHighImpactItems);
+    const riskLevel = (0, severity_1.getRiskLevel)(analysis.totalEstimatedTokens, highImpact, settings.severityThresholds);
     core.setOutput('total-estimated-tokens', String(analysis.totalEstimatedTokens));
     core.setOutput('analyzed-file-count', String(analysis.files.length));
     core.setOutput('estimation-mode', settings.estimationMode);
+    core.setOutput('risk-level', riskLevel);
+    const badgeUrl = (0, badge_1.buildRiskBadgeUrl)(riskLevel, analysis.totalEstimatedTokens);
+    core.setOutput('badge-url', badgeUrl);
+    core.setOutput('badge-markdown', (0, badge_1.buildBadgeMarkdown)(badgeUrl, 'Context risk'));
     const failDecision = (0, fail_1.shouldFailRun)(analysis, {
         failOnSeverity: settings.failOnSeverity,
         failAboveTokens: settings.failAboveTokens,
@@ -33898,6 +34223,18 @@ async function run() {
         warnOnlyCategories: settings.warnOnlyCategories,
         severityThresholds: settings.severityThresholds,
     }, settings.maxHighImpactItems);
+    let checkConclusion;
+    if (createCheck && headSha) {
+        checkConclusion = await (0, check_1.publishCheckRun)(octokit, owner, repo, headSha, analysis, settings, failDecision);
+        core.setOutput('check-conclusion', checkConclusion);
+    }
+    let sarifPath;
+    if (uploadSarif && headSha && headRef) {
+        const sarifResult = await (0, sarif_upload_1.uploadSarifReport)(octokit, owner, repo, headSha, `refs/heads/${headRef}`, analysis, workspaceRoot);
+        sarifPath = sarifResult.sarifPath;
+        core.setOutput('sarif-path', sarifPath);
+        core.setOutput('sarif-uploaded', String(sarifResult.uploaded));
+    }
     await (0, summary_1.writeJobSummary)(analysis, settings, failDecision);
     if (failDecision.fail) {
         core.setFailed(failDecision.reason ?? 'ContextLevy fail threshold exceeded.');
@@ -33939,6 +34276,96 @@ async function run() {
     await (0, comments_1.upsertComment)(fallbackOctokit, owner, repo, pullNumber, body, {
         botLogin: await getAuthenticatedLogin(fallbackOctokit),
     });
+}
+
+
+/***/ }),
+
+/***/ 8094:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.writeSarifFile = writeSarifFile;
+exports.isSarifUploadError = isSarifUploadError;
+exports.uploadSarifReport = uploadSarifReport;
+const node_fs_1 = __nccwpck_require__(3024);
+const node_path_1 = __nccwpck_require__(6760);
+const node_zlib_1 = __nccwpck_require__(8522);
+const core = __importStar(__nccwpck_require__(7484));
+const sarif_1 = __nccwpck_require__(6986);
+function writeSarifFile(analysis, outputPath) {
+    const sarif = (0, sarif_1.buildSarifReport)(analysis);
+    (0, node_fs_1.writeFileSync)(outputPath, `${JSON.stringify(sarif, null, 2)}\n`, 'utf8');
+    return sarif;
+}
+function isSarifUploadError(error) {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const candidate = error;
+    return (candidate.status === 403 ||
+        candidate.status === 404 ||
+        candidate.status === 422 ||
+        Boolean(candidate.message?.includes('Resource not accessible by integration')) ||
+        Boolean(candidate.message?.includes('Code scanning is not enabled')));
+}
+async function uploadSarifReport(octokit, owner, repo, headSha, ref, analysis, workspaceRoot) {
+    const sarifPath = (0, node_path_1.join)(workspaceRoot, 'contextlevy-results.sarif.json');
+    const sarif = writeSarifFile(analysis, sarifPath);
+    const compressed = (0, node_zlib_1.gzipSync)(Buffer.from(JSON.stringify(sarif), 'utf8'));
+    try {
+        await octokit.rest.codeScanning.uploadSarif({
+            owner,
+            repo,
+            commit_sha: headSha,
+            ref,
+            sarif: compressed.toString('base64'),
+        });
+        core.info(`Uploaded SARIF report for ${ref} (${headSha}).`);
+        return { uploaded: true, sarifPath };
+    }
+    catch (error) {
+        if (isSarifUploadError(error)) {
+            core.warning(`ContextLevy could not upload SARIF to Code Scanning (${error instanceof Error ? error.message : String(error)}). SARIF was still written to ${sarifPath}. Add security-events: write permission.`);
+            return { uploaded: false, sarifPath };
+        }
+        throw error;
+    }
 }
 
 
