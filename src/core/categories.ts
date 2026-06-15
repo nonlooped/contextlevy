@@ -12,6 +12,34 @@ export const HARD_FAIL_CATEGORIES: readonly ContextCategory[] = [
   'minified',
 ] as const;
 
+const HARD_FAIL_CATEGORY_SET = new Set<ContextCategory>(HARD_FAIL_CATEGORIES);
+
+export function isHardFailCategory(category: ContextCategory): boolean {
+  return HARD_FAIL_CATEGORY_SET.has(category);
+}
+
+export function sarifLevelForCategory(category: ContextCategory): 'error' | 'warning' | 'note' {
+  if (isHardFailCategory(category)) {
+    return 'error';
+  }
+  if (category === 'other') {
+    return 'note';
+  }
+  return 'warning';
+}
+
+export function checkAnnotationLevelForCategory(
+  category: ContextCategory,
+): 'failure' | 'warning' | 'notice' {
+  if (isHardFailCategory(category)) {
+    return 'failure';
+  }
+  if (category === 'other') {
+    return 'notice';
+  }
+  return 'warning';
+}
+
 /** Categories that are often intentional — warn in comments, never fail alone. */
 export const WARN_ONLY_CATEGORIES: readonly ContextCategory[] = [
   'lockfile',

@@ -8,6 +8,7 @@ import type {
   FileAnalysis,
   PullRequestAnalysis,
   PullRequestFileLike,
+  RuleMatch,
 } from './types';
 
 export interface AnalyzeOptions {
@@ -18,7 +19,31 @@ export interface AnalyzeOptions {
   customRules: CustomRule[];
 }
 
-function uniqueSuggestions(values: Array<string | undefined>): string[] {
+export interface ClassifyFileOptions {
+  largeFileTokenThreshold: number;
+  allowPaths: string[];
+  customRules: CustomRule[];
+}
+
+export function resolveFileClassification(
+  filename: string,
+  estimatedTokens: number,
+  options: ClassifyFileOptions,
+): RuleMatch {
+  let rule = classifyPath(filename, options.customRules);
+
+  if (matchesAnyPathPattern(filename, options.allowPaths)) {
+    rule = DEFAULT_MATCH;
+  }
+
+  if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
+    rule = largeFileMatch();
+  }
+
+  return rule;
+}
+
+export function uniqueSuggestions(values: Array<string | undefined>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
@@ -56,15 +81,7 @@ export function analyzePullRequestFiles(
       continue;
     }
 
-    let rule = classifyPath(file.filename, options.customRules);
-
-    if (matchesAnyPathPattern(file.filename, options.allowPaths)) {
-      rule = DEFAULT_MATCH;
-    }
-
-    if (estimatedTokens >= options.largeFileTokenThreshold && rule.category === 'other') {
-      rule = largeFileMatch();
-    }
+    const rule = resolveFileClassification(file.filename, estimatedTokens, options);
 
     analyzed.push({
       filename: file.filename,
