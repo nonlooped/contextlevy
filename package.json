@@ -55,20 +55,20 @@
   "dependencies": {
     "picocolors": "^1.1.1",
     "js-tiktoken": "^1.0.21",
-    "yaml": "^2.8.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@actions/core": "^2.0.3",
-    "@actions/github": "^8.0.1",
-    "@biomejs/biome": "2.4.16",
-    "@octokit/auth-app": "^7.1.5",
-    "@octokit/rest": "^21.1.1",
-    "@types/node": "^25.9.1",
-    "@vercel/ncc": "^0.38.4",
-    "@vitest/coverage-v8": "^4.1.7",
-    "fallow": "^2.80.0",
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "@biomejs/biome": "2.5.1",
+    "@octokit/auth-app": "^8.2.0",
+    "@octokit/rest": "^22.0.1",
+    "@types/node": "^26.0.0",
+    "@vercel/ncc": "^0.44.0",
+    "@vitest/coverage-v8": "^4.1.9",
+    "fallow": "^2.102.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "undici": "^6.27.0"
