@@ -71,7 +71,7 @@
     "vitest": "^4.1.7"
   },
   "overrides": {
-    "undici": "^6.25.0"
+    "undici": "^6.27.0"
   },
   "publishConfig": {
     "access": "public"
